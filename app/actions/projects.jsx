@@ -17,14 +17,15 @@ export async function getProjects(userId) {
 
 
 export async function getSingleProject(projectId,userId){
-    console.log('this run')
-    console.log(projectId,userId)
-    const project = await prisma.project.findUnique({
-        where: {
-            id: Number(projectId),
-            userId: userId
+    try {
+
+    
+    const project =  await prisma.project.findFirst({
+        where : {
+            id : projectId,
+            userId : userId
         }
-    });
+    })
 
     console.log(project)
 
@@ -38,6 +39,8 @@ export async function getSingleProject(projectId,userId){
             data : null,
             status : 404
         }
+    }   
+    } catch (error) {
+        return error
     }
-
 }

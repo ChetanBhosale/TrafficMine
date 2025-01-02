@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
+  id        String    @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
   name      String?
   email     String    @unique
   image     String?
@@ -18,12 +18,12 @@ model User {
 }
 
 model Project {
-  id          Int             @id @default(autoincrement())
+  id          String           @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
   name        String?
   description String?
   url         String?
   image       String?
-  userId      Int?
+  userId      String
   user        User?           @relation(fields: [userId], references: [id])
   metrics     ProjectMetrics[]
   referrals   ReferralMetrics[]
@@ -32,31 +32,31 @@ model Project {
 }
 
 model ProjectMetrics {
-  id              Int      @id @default(autoincrement())
-  projectId       Int
-  project         Project  @relation(fields: [projectId], references: [id])
+  id              String   @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id])
   timeframe       TimeFrame
   timestamp       DateTime
-  views           Int      @default(0)
-  uniqueViews     Int      @default(0)
+  views           Int       @default(0)
+  uniqueViews     Int       @default(0)
   bounceRate      Float?
   sessionDuration Float?
   avgTimeOnPage   Float?
   exitRate        Float?
-  pageViews       Int      @default(0)
+  pageViews       Int       @default(0)
   pageBounceRate  Float?
   avgPageLoadTime Float?
   timeOnSite      Float?
-  actions         Int      @default(0)
-  transactions    Int      @default(0)
+  actions         Int       @default(0)
+  transactions    Int       @default(0)
   
   @@index([projectId, timeframe, timestamp])
   @@unique([projectId, timeframe, timestamp])
 }
 
 model ReferralMetrics {
-  id          Int       @id @default(autoincrement())
-  projectId   Int
+  id          String    @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  projectId   String
   project     Project   @relation(fields: [projectId], references: [id])
   timeframe   TimeFrame
   timestamp   DateTime
