@@ -27,8 +27,6 @@ export async function getSingleProject(projectId,userId){
         }
     })
 
-    console.log(project)
-
     if(project){
         return {
             data : project,

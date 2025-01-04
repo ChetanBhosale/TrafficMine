@@ -17,7 +17,6 @@ const Userdropdown = ({data}) => {
   };
 
   const location = usePathname()
-  console.log(location)
 
   return (
     <DropdownMenu>

@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 export async function POST(req) {
     try {
         const data = await req.json();
+
+        console.log(data,'current receiving data from the user')
+        console.log(new Date())
         
         // Here you'll save the data to your database
         // Example with prisma:
@@ -18,7 +21,6 @@ export async function POST(req) {
 
         return NextResponse.json({ status: 'success' });
     } catch (error) {
-        console.error('Tracking error:', error);
         return NextResponse.json(
             { error: 'Failed to track' },
             { status: 500 }

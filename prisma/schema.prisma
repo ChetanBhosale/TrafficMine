@@ -24,68 +24,67 @@ model Project {
   url         String?
   image       String?
   userId      String
-  user        User?           @relation(fields: [userId], references: [id])
-  metrics     ProjectMetrics[]
-  referrals   ReferralMetrics[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  user        User             @relation(fields: [userId], references: [id])
+  visitorSessions VisitorSession[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
-model ProjectMetrics {
-  id              String   @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
-  projectId       String
-  project         Project   @relation(fields: [projectId], references: [id])
-  timeframe       TimeFrame
-  timestamp       DateTime
-  views           Int       @default(0)
-  uniqueViews     Int       @default(0)
-  bounceRate      Float?
-  sessionDuration Float?
-  avgTimeOnPage   Float?
-  exitRate        Float?
-  pageViews       Int       @default(0)
-  pageBounceRate  Float?
-  avgPageLoadTime Float?
-  timeOnSite      Float?
-  actions         Int       @default(0)
-  transactions    Int       @default(0)
-  
-  @@index([projectId, timeframe, timestamp])
-  @@unique([projectId, timeframe, timestamp])
+model VisitorSession {
+  id                String       @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  projectId         String
+  project           Project      @relation(fields: [projectId], references: [id])
+  sessionStart      DateTime     @default(now()) // Start time of the session
+  sessionEnd        DateTime?    // End time of the session (nullable)
+  deviceInfoId      String
+  deviceInfo        DeviceInfo   @relation(fields: [deviceInfoId], references: [id])
+  browserInfoId     String
+  browserInfo       BrowserInfo  @relation(fields: [browserInfoId], references: [id])
+  locationInfoId    String
+  locationInfo      LocationInfo @relation(fields: [locationInfoId], references: [id])
+  visitorEvents     VisitorEvent[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
 
-model ReferralMetrics {
-  id          String    @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
-  projectId   String
-  project     Project   @relation(fields: [projectId], references: [id])
-  timeframe   TimeFrame
-  timestamp   DateTime
-  twitter     Int       @default(0)
-  facebook    Int       @default(0)
-  instagram   Int       @default(0)
-  website     Int       @default(0)
-  email       Int       @default(0)
-  google      Int       @default(0)
-  linkedin    Int       @default(0)
-  youtube     Int       @default(0)
-  reddit      Int       @default(0)
-  pinterest   Int       @default(0)
-  tiktok      Int       @default(0)
-  snapchat    Int       @default(0)
-  telegram    Int       @default(0)
-  whatsapp    Int       @default(0)
-  github      Int       @default(0)
-  wechat      Int       @default(0)
-  other       Int       @default(0)
-  direct      Int       @default(0)
-
-  @@index([projectId, timeframe, timestamp])
-  @@unique([projectId, timeframe, timestamp])
+model VisitorEvent {
+  id                String       @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  visitorSessionId  String
+  visitorSession    VisitorSession @relation(fields: [visitorSessionId], references: [id])
+  eventType         String       // e.g., "pageview", "click", "form_submit"
+  eventTimestamp    DateTime     @default(now()) // Timestamp of the event
+  pageUrl           String?      // URL of the page where the event occurred
+  duration          Int?         // Duration of the event (in seconds)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
 
-enum TimeFrame {
-  HOURLY
-  DAILY
-  WEEKLY
-  MONTHLY
+model DeviceInfo {
+  id                String       @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  deviceType        String?      // e.g., "desktop", "mobile", "tablet"
+  deviceModel       String?      // e.g., "iPhone 12", "Samsung Galaxy S21"
+  operatingSystem   String?      // e.g., "iOS", "Android", "Windows"
+  visitorSessions   VisitorSession[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model BrowserInfo {
+  id                String       @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  browserName       String?      // e.g., "Chrome", "Firefox", "Safari"
+  browserVersion    String?      // e.g., "95.0.4638.69"
+  visitorSessions   VisitorSession[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model LocationInfo {
+  id                String       @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  country           String?      // e.g., "United States"
+  region            String?      // e.g., "California"
+  city              String?      // e.g., "San Francisco"
+  timezone          String?      // e.g., "America/Los_Angeles"
+  visitorSessions   VisitorSession[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
