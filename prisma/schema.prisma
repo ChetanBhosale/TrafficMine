@@ -33,6 +33,7 @@ model Project {
 model VisitorSession {
   id                String       @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
   projectId         String
+  visitorId         String       @unique // Unique identifier for the visitor
   project           Project      @relation(fields: [projectId], references: [id])
   sessionStart      DateTime     @default(now()) // Start time of the session
   sessionEnd        DateTime?    // End time of the session (nullable)
@@ -42,6 +43,12 @@ model VisitorSession {
   browserInfo       BrowserInfo  @relation(fields: [browserInfoId], references: [id])
   locationInfoId    String
   locationInfo      LocationInfo @relation(fields: [locationInfoId], references: [id])
+  visitedPages      String[]     // Array of visited pages
+  isActive          Boolean      @default(false) // Whether the session is active
+  isFinal           Boolean      @default(false) // Whether this is the final send
+  source            String?      // Source of the traffic (e.g., social, search, direct)
+  duration          Float?       // Duration of the session in seconds
+  page              String?      // Current page of the session
   visitorEvents     VisitorEvent[]
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt

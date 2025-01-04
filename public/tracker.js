@@ -4,6 +4,9 @@
     const projectId = params.get('projectId'); // Get projectId from script URL
     const startTime = Date.now();
     let isActive = false;
+    let visitedPages = [window.location.pathname]; // Initialize with the current page
+    let lastActiveTime = startTime; // Track the last active time
+    let inactiveStartTime = null; // Track when the user becomes inactive
   
     // Generate a unique visitorId or retrieve from cookie
     function getOrCreateVisitorId() {
@@ -37,10 +40,28 @@
     // Track user activity
     function trackActivity() {
       isActive = true;
+      lastActiveTime = Date.now(); // Update the last active time
+    }
+  
+    // Track page visits
+    function trackPageVisit() {
+      const currentPage = window.location.pathname;
+      if (!visitedPages.includes(currentPage)) {
+        visitedPages.push(currentPage); // Add the new page to the visitedPages array
+      }
     }
   
     // Listen for user interactions
     ['click', 'scroll'].forEach((event) => document.addEventListener(event, trackActivity, { passive: true }));
+  
+    // Listen for page changes (for Single Page Applications - SPAs)
+    let lastUrl = window.location.href;
+    setInterval(() => {
+      if (lastUrl !== window.location.href) {
+        lastUrl = window.location.href;
+        trackPageVisit(); // Track the new page
+      }
+    }, 500); // Check for URL changes every 500ms
   
     // Send data to the server
     let lastSent = 0;
@@ -50,15 +71,23 @@
       const now = Date.now();
       if (!final && now - lastSent < SEND_INTERVAL) return;
   
+      // Calculate session duration
+      let sessionDuration = (now - startTime) / 1000; // Total duration in seconds
+      if (inactiveStartTime !== null) {
+        // Subtract the time the user was inactive
+        sessionDuration -= (now - inactiveStartTime) / 1000;
+      }
+  
       const data = {
         projectId,
         visitorId: getOrCreateVisitorId(),
         timestamp: new Date().toISOString(),
         source: getSource(),
-        duration: (now - startTime) / 1000, // Session duration in seconds
+        duration: sessionDuration, // Adjusted session duration
         isActive,
         isFinal: final,
         page: window.location.href,
+        visitedPages, // Send the array of visited pages
       };
   
       // Use Beacon API for final send (e.g., on page unload)
@@ -81,14 +110,25 @@
     let timer;
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
+        // User returned to the tab
+        if (inactiveStartTime !== null) {
+          // Subtract the inactive time from the session duration
+          const now = Date.now();
+          startTime += now - inactiveStartTime; // Adjust the start time
+          inactiveStartTime = null; // Reset inactive start time
+        }
+        isActive = true; // User is active again
         if (!timer) {
           timer = setInterval(sendData, SEND_INTERVAL);
         }
       } else {
+        // User left the tab
         if (timer) {
           clearInterval(timer);
           timer = null;
         }
+        isActive = false; // User is inactive
+        inactiveStartTime = Date.now(); // Track when the user became inactive
       }
     });
   
