@@ -33,16 +33,14 @@ model Project {
 model VisitorSession {
   id                String       @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
   projectId         String
-  visitorId         String       @unique // Unique identifier for the visitor
   project           Project      @relation(fields: [projectId], references: [id])
+  visitorId         String       // Unique identifier for the visitor
   sessionStart      DateTime     @default(now()) // Start time of the session
   sessionEnd        DateTime?    // End time of the session (nullable)
   deviceInfoId      String
   deviceInfo        DeviceInfo   @relation(fields: [deviceInfoId], references: [id])
   browserInfoId     String
   browserInfo       BrowserInfo  @relation(fields: [browserInfoId], references: [id])
-  locationInfoId    String
-  locationInfo      LocationInfo @relation(fields: [locationInfoId], references: [id])
   visitedPages      String[]     // Array of visited pages
   isActive          Boolean      @default(false) // Whether the session is active
   isFinal           Boolean      @default(false) // Whether this is the final send
@@ -52,6 +50,8 @@ model VisitorSession {
   visitorEvents     VisitorEvent[]
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
+
+  LocationInfo LocationInfo[]
 }
 
 model VisitorEvent {
@@ -91,7 +91,7 @@ model LocationInfo {
   region            String?      // e.g., "California"
   city              String?      // e.g., "San Francisco"
   timezone          String?      // e.g., "America/Los_Angeles"
-  visitorSessions   VisitorSession[]
   createdAt         DateTime     @default(now())
+  visitorSessions   VisitorSession[]
   updatedAt         DateTime     @updatedAt
 }
