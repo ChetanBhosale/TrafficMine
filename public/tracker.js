@@ -147,6 +147,7 @@
       currentFlow: null, // No currentFlow for the initial call
     };
 
+    console.log('data')
     try {
     if(currentSessionId === null){
       const response = await fetch('http://localhost:3000/api/open/track', {
