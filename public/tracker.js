@@ -279,3 +279,11 @@
   const projectId = params.get('projectId');
   getUserCurrentStatus(projectId);
 })();
+
+
+// basic hero landing page (dark + white mode)
+// database design
+// best authentication system for the application
+// good dashboard and logs for the application
+// add seecurity aspect to nextjs
+// upload v1 demo of the project
