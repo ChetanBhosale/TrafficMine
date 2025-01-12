@@ -3,8 +3,9 @@
     let visitedPages = [window.location.pathname];
     let userIP = null;
     let currentSessionId = getSessionId();
-    let userId = getOrCreateUserId(); // Get or create userId
+    let userId = getOrCreateUserId();
     const startTime = Date.now();
+    const errors = [];
 
     async function fetchUserIP() {
       try {
@@ -94,11 +95,103 @@
     function getOrCreateUserId() {
       let userId = localStorage.getItem('userId');
       if (!userId) {
-        userId = 'user_' + Math.random().toString(36).substring(2, 15); // Generate a unique userId
-        localStorage.setItem('userId', userId); // Store in localStorage
+        userId = 'user_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('userId', userId);
       }
       return userId;
     }
+
+    // Intercept fetch requests to track errors
+    const originalFetch = window.fetch;
+    window.fetch = async function (...args) {
+      const startTime = Date.now();
+      const request = {
+        url: args[0],
+        method: args[1]?.method || 'GET',
+        timestamp: new Date().toISOString(),
+        page: window.location.pathname, // Track the current page
+      };
+
+      try {
+        const response = await originalFetch(...args);
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+
+        // Capture errors (4xx or 5xx status codes)
+        if (!response.ok) {
+          errors.push({
+            url: request.url, // Request URL
+            method: request.method, // HTTP method
+            status: response.status, // Status code
+            response: await response.clone().json(), // Error response
+            timestamp: request.timestamp, // Time of the request
+            page: request.page, // Current page
+          });
+        }
+
+        return response;
+      } catch (error) {
+        // Capture network errors
+        errors.push({
+          url: request.url, // Request URL
+          method: request.method, // HTTP method
+          status: 0, // Status code for network errors
+          response: error.message, // Error message
+          timestamp: request.timestamp, // Time of the request
+          page: request.page, // Current page
+        });
+        throw error;
+      }
+    };
+
+    // Intercept XMLHttpRequest requests to track errors
+    const originalXHR = window.XMLHttpRequest;
+    window.XMLHttpRequest = function () {
+      const xhr = new originalXHR();
+      const startTime = Date.now();
+      let method, url;
+
+      xhr.open = function (...args) {
+        method = args[0];
+        url = args[1];
+        return originalXHR.prototype.open.apply(this, args);
+      };
+
+      xhr.send = function (body) {
+        return originalXHR.prototype.send.apply(this, arguments);
+      };
+
+      xhr.onload = function () {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+
+        // Capture errors (4xx or 5xx status codes)
+        if (xhr.status >= 400) {
+          errors.push({
+            url, // Request URL
+            method, // HTTP method
+            status: xhr.status, // Status code
+            response: JSON.parse(xhr.responseText || '{}'), // Error response
+            timestamp: new Date().toISOString(), // Time of the request
+            page: window.location.pathname, // Current page
+          });
+        }
+      };
+
+      xhr.onerror = function () {
+        // Capture network errors
+        errors.push({
+          url, // Request URL
+          method, // HTTP method
+          status: 0, // Status code for network errors
+          response: 'Network Error', // Error message
+          timestamp: new Date().toISOString(), // Time of the request
+          page: window.location.pathname, // Current page
+        });
+      };
+
+      return xhr;
+    };
 
     async function sendInitialData() {
       userIP = await fetchUserIP();
@@ -118,7 +211,7 @@
         deviceInfo,
         browserInfo,
         currentFlow: currentSessionId,
-        userId, // Include userId in the data
+        userId,
       };
 
       try {
@@ -152,7 +245,8 @@
         deviceInfo: getDeviceInfo(),
         browserInfo: getBrowserInfo(),
         currentFlow: currentSessionId,
-        userId, // Include userId in the data
+        userId,
+        errors, // Include all collected errors in the final data
       };
 
       if (navigator.sendBeacon) {
