@@ -56,19 +56,44 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-
 model Project {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  link      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
-  image String
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  link        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+  image       String?
+
+  visitorSession VisitorSession[]
 }
 
+model VisitorSession {
+  id            String     @id @default(uuid()) @db.Uuid
+  projectId     String     @db.Uuid // Changed to @db.Uuid to match Project.id
+  project       Project    @relation(fields: [projectId], references: [id])
+  visitorId     String     // Unique identifier for the visitor
+  sessionStart  DateTime   @default(now()) // Start time of the session
+  sessionEnd    DateTime?
+  isActive      Boolean    @default(false)
+  isFinal       Boolean
+  source        String
+  duration      Int        // Duration in seconds
+  pages         String[]   // Array of visited pages
+  browser       String     // Browser name and version
+  device        String     // Device type (mobile, tablet, desktop)
+  brand         String?    // Device brand
+  ip            String?    // User IP address
+  country           String?      // e.g., "United States"
+  region            String?      // e.g., "California"
+  city              String?      // e.g., "San Francisco"
+  timezone          String?      // e.g., "America/
+  deviceInfo    Json?      // Detailed device info (e.g., OS, model)
+  browserInfo   Json?      // Detailed browser info (e.g., name, version)
+  errors        Json?      // Captured errors during the session
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-model Visitor {
-  id        String   @id @default(uuid()) @db.Uuid
 }
