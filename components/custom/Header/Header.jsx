@@ -15,18 +15,19 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FaMoon } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
 
 const Header = () => {
   const { theme, setTheme } = useTheme();
   const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
 
-  // Handle mounting state to prevent hydration mismatch
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Prevent hydration mismatch by not rendering theme toggle until mounted
+  const navigate = useRouter()
   if (!mounted) {
     return (
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/30 dark:bg-black/30">

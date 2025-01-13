@@ -3,6 +3,7 @@ import { NextAuthProvider } from "@/lib/session_provider";
 import { Toaster } from "react-hot-toast";
 import { Lora, Montserrat, Poppins } from 'next/font/google';
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import Header from "@/components/custom/Header/Header";
 
 // Lora (Soft and Classic Font)
 const lora = Lora({
@@ -36,6 +37,7 @@ export default function RootLayout({ children }) {
       <body>
         <NextThemesProvider defaultTheme="system" attribute="class">
           <NextAuthProvider>
+          <Header />
             {children}
             <Toaster />
           </NextAuthProvider>
