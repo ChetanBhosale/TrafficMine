@@ -29,7 +29,7 @@
       };
     }
 
-    function getBrowserInfo() {
+    function getBrowserInfo() {s
       const userAgent = navigator.userAgent;
       let browserName = 'Unknown';
       let browserVersion = 'Unknown';

@@ -49,7 +49,7 @@ model VisitorSession {
   page              String?      // Current page of the session
   visitorEvents     VisitorEvent[]
   createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  updatedAt           DateTime     @updatedAt
 
   LocationInfo LocationInfo[]
 }

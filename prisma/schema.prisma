@@ -8,59 +8,20 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid()) @db.Uuid
+  id            String    @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
   name          String?
   email         String    @unique
   image         String?
-  emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
   projects      Project[]
-}
 
-model Account {
-  id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @db.Uuid
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(uuid()) @db.Uuid
-  sessionToken String   @unique
-  userId       String   @db.Uuid
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  id         String   @id @default(uuid()) @db.Uuid
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
+  @@map("users")
 }
 
 model Project {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
   name        String
   description String?
-  userId      String   @db.Uuid
+  userId      String   @db.Char(8)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   link        String
   createdAt   DateTime @default(now())
@@ -68,32 +29,34 @@ model Project {
   image       String?
 
   visitorSession VisitorSession[]
+  @@map("projects")
 }
 
 model VisitorSession {
-  id            String     @id @default(uuid()) @db.Uuid
-  projectId     String     @db.Uuid // Changed to @db.Uuid to match Project.id
+  id            String     @id @default(dbgenerated("substring(replace(cast(gen_random_uuid() as text), '-', ''), 1, 8)")) @db.Char(8)
+  projectId     String     @db.Char(8)
   project       Project    @relation(fields: [projectId], references: [id])
-  visitorId     String     // Unique identifier for the visitor
-  sessionStart  DateTime   @default(now()) // Start time of the session
+  visitorId     String     
+  sessionStart  DateTime   @default(now())
   sessionEnd    DateTime?
   isActive      Boolean    @default(false)
   isFinal       Boolean
   source        String
-  duration      Int        // Duration in seconds
-  pages         String[]   // Array of visited pages
-  browser       String     // Browser name and version
-  device        String     // Device type (mobile, tablet, desktop)
-  brand         String?    // Device brand
-  ip            String?    // User IP address
-  country           String?      // e.g., "United States"
-  region            String?      // e.g., "California"
-  city              String?      // e.g., "San Francisco"
-  timezone          String?      // e.g., "America/
-  deviceInfo    Json?      // Detailed device info (e.g., OS, model)
-  browserInfo   Json?      // Detailed browser info (e.g., name, version)
-  errors        Json?      // Captured errors during the session
+  duration      Int        
+  pages         String[]   
+  browser       String     
+  device        String     
+  brand         String?    
+  ip            String?    
+  country       String?    
+  region        String?    
+  city          String?    
+  timezone      String?    
+  deviceInfo    Json?      
+  browserInfo   Json?      
+  errors        Json?      
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
+  @@map("visitor_sessions")
 }

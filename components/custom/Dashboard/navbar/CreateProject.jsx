@@ -19,7 +19,7 @@ const CreateProject = () => {
   const [isOpen, setOpen] = useState(false)
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4">
+    <div className="mx-auto px-4">
       <div className="flex items-center space-x-3 w-full h-14">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

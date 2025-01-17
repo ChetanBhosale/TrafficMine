@@ -37,8 +37,10 @@ export default function RootLayout({ children }) {
       <body>
         <NextThemesProvider defaultTheme="system" attribute="class">
           <NextAuthProvider>
-          <Header />
-            {children}
+            <Header />
+            <div className="container mx-auto  py-4">
+              {children}
+            </div>
             <Toaster />
           </NextAuthProvider>
         </NextThemesProvider>

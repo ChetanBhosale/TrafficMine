@@ -46,6 +46,7 @@ const Header = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/30 dark:bg-black/30">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -67,9 +68,8 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage 
-                      src={session.user.image || ''} 
-                      alt={session.user.name || 'User avatar'} 
+                    <AvatarImage
+                      src={session?.user?.image || '' }
                     />
                     <AvatarFallback>
                       {getInitials(session.user.name || '')}

@@ -15,7 +15,6 @@ export async function getProjects(userId) {
     return projects;
 }
 
-
 export async function getSingleProject(projectId,userId){
     try {
 

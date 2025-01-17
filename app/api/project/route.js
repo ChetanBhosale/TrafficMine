@@ -2,10 +2,9 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth_config";
 import { NextRequest, NextResponse } from "next/server";
 import { checkWebsiteExists, getFavicon } from "@/services/web_validation";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/db_conn";
 
 export async function POST(req) {
-    let prisma = new PrismaClient();
     try {
         const session = await getServerSession(authOptions);
         if (!session) {
@@ -13,6 +12,7 @@ export async function POST(req) {
         }
 
         const data = await req.json();
+        console.log(data,'is this working')
 
         if(data?.webUrl?.startsWith('www')){
             data.webUrl = data?.webUrl?.replace('www.', 'https://')
@@ -26,11 +26,20 @@ export async function POST(req) {
 
         // validating links
 
+        // let checkUrlExists = await prisma.project.findFirst({
+        //     where : {
+        //         url : data.webUrl,
+        //         userId: session.user.id
+        //     }
+        // })
+
+        console.log(session?.user?.id,'user session')
+
         let checkUrlExists = await prisma.project.findFirst({
-            where : {
-                url : data.webUrl,
-                userId: session.user.id
-            }
+           where : {
+            link : data.webUrl,
+            userId : session.user.id
+           }
         })
 
         if(checkUrlExists){
@@ -48,13 +57,13 @@ export async function POST(req) {
         let fevicon = await getFavicon(data.webUrl);
 
 
-
         let project = await prisma.project.create({
             data: {
-                name: data.projectName,
-                url: data.webUrl,
-                image: fevicon ? fevicon : '',
-                userId: session.user.id
+                name : data.projectName,
+                description : '',
+                userId : session.user.id,
+                link : data.webUrl,
+                image : fevicon
             }
         });
 
@@ -64,7 +73,7 @@ export async function POST(req) {
 
         return NextResponse.json({ message : 'Project creating failed!' }, { status: 301 });
     } catch (error) {
-        console.log({error})
+        console.log(JSON.stringify(error))
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }
