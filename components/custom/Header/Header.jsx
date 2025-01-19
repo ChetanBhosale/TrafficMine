@@ -27,12 +27,13 @@ const Header = () => {
     setMounted(true);
   }, []);
 
+
   const navigate = useRouter()
   if (!mounted) {
     return (
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/30 dark:bg-black/30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl text-gray-800 dark:text-white">TrafficMine</h1>
+          <h1 onClick={() => navigate.push('/dashboard')}  className="text-2xl cursor-pointer text-gray-800 dark:text-white">TrafficMine</h1>
           <div className="flex items-center space-x-4">
             <div className="w-9 h-9" /> {/* Placeholder for theme toggle */}
           </div>
@@ -50,7 +51,7 @@ const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/30 dark:bg-black/30">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <h1 className="text-2xl text-gray-800 dark:text-white">TrafficMine</h1>
+        <h1 onClick={() => navigate.push('/dashboard')} className="text-2xl cursor-pointer text-gray-800 dark:text-white">TrafficMine</h1>
         <div className="flex items-center space-x-4">
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

@@ -1,67 +1,65 @@
-'use client';
-import React from 'react';
-import { Card } from '@/components/ui/card';
-import { BsThreeDotsVertical } from "react-icons/bs";
-import { Briefcase } from "lucide-react";
-import { useRouter } from 'next/navigation';
-import { MdNavigateNext } from "react-icons/md";
+import {Activity, CheckCircle} from 'lucide-react'
 
-const ProjectCard = ({ project }) => {
-  const router = useRouter();
-
-  const formatDate = (date) => {
-    if (!date) return 'N/A';
-    const d = new Date(date);
-    const diff = Math.floor((new Date() - d) / (1000 * 60 * 60 * 24));
-
-    if (diff === 0) return 'Today';
-    if (diff === 1) return 'Yesterday';
-    if (diff < 7) return `${diff} days ago`;
-
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const redirectToProject = () => {
-    router.push(`/dashboard/project/${project.id}`);
-  };
-
+function ProjectCard({ id, name, description, image, status }) {
   return (
-    <Card
-      onClick={redirectToProject}
-      className="relative group cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100"
-    >
-      <div className="relative p-6 flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white shadow-sm flex items-center justify-center w-10 h-10">
-              {project.image ? (
-                <img
-                  src={project.image}
-                  alt={project.name}
-                  className="w-full h-full object-cover rounded"
-                />
-              ) : (
-                <Briefcase className="w-6 h-6 text-blue-600" />
-              )}
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 group-hover:text-gray-600 flex items-center gap-2">
-                {project.name}
-                <MdNavigateNext className="hidden group-hover:inline-block" size={20} />
-              </h3>
-              <p className="text-sm text-gray-500">
-                Last updated: {formatDate(project?.updatedAt)}
-              </p>
-            </div>
+    <div className="group relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="relative p-6">
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            {/* <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full animate-pulse group-hover:animate-none" /> */}
+            <img 
+              className="relative w-16 h-16 rounded-full border-2 object-cover" 
+              src={image || "/placeholder.svg"} 
+              alt={name} 
+            />
           </div>
-          <BsThreeDotsVertical className="text-gray-400 hover:text-gray-600 transition-all" size={20} />
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+              {name}
+            </h3>
+            {/* <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mt-2
+              ${status === 'active' 
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                : status === 'completed'
+                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+              }`}>
+              {status}
+            </span> */}
+          </div>
+        </div>
+        
+        <div className="mt-6 flex items-center justify-between">
+          <a
+            href={`/dashboard/project/${id}`}
+            className="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
+          >
+            Visit Project
+            <svg
+              className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+          </a>
+          
+          <span className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+            <Activity className="w-4 h-4 mr-1" />
+            Active
+          </span>
         </div>
       </div>
-    </Card>
-  );
-};
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 transform scale-x-0 group-hover:scale-x-100 transition-transform" />
+    </div>
+  )
+}
 
-export default ProjectCard;
+export default ProjectCard

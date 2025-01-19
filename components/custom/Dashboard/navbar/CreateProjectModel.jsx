@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,12 +13,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState } from "react"
 import toast from "react-hot-toast"
+import { FaSpinner } from "react-icons/fa"
+import { useRouter } from "next/navigation"
 
 const CreateProjectModel = ({ isOpen, setOpen }) => {
   const [title, setTitle] = useState("")
   const [link, setLink] = useState("")
+  const Router = useRouter()
   const [errors, setErrors] = useState({ title: "", link: "" })
-
 
   const validateForm = () => {
     let isValid = true
@@ -36,8 +40,11 @@ const CreateProjectModel = ({ isOpen, setOpen }) => {
     return isValid
   }
 
-  const handleSubmit = async() => {
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async () => {
     let toastLoad = toast.loading('Creating project...')
+    setLoading(true)
     if (validateForm()) {
       console.log("Form submitted:", { title, link })
       let createProject = await fetch('/api/project', {
@@ -46,20 +53,20 @@ const CreateProjectModel = ({ isOpen, setOpen }) => {
         body: JSON.stringify({ projectName: title, webUrl: link })
       })
 
-      
-
-      if(createProject.status === 200){
+      if (createProject.status === 200) {
         toast.success("Project created successfully!")
-        setOpen(false)
+        setOpen(false) 
         toast.dismiss(toastLoad)
+        setLoading(false)
+        Router.refresh()
         return
       }
 
       toast.error(createProject?.message || "Failed to create Project, please try again later!")
-
-    }else{
+    } else {
       toast.error("Please fill all the fields")
     }
+    setLoading(false)
     toast.dismiss(toastLoad)
   }
 
@@ -107,11 +114,16 @@ const CreateProjectModel = ({ isOpen, setOpen }) => {
             )}
           </div>
         </div>
-        <DialogFooter>
-          <Button type="button" onClick={handleSubmit} className="w-full dark:text-white">
-            Save changes
+
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full dark:text-white flex items-center justify-center"
+          >
+            {loading && <FaSpinner className="animate-spin" />}
+            {loading ? 'Creating Project' : 'Save changes'}
           </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

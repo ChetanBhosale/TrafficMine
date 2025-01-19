@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 export async function POST(req) {
   try {
     const data = await req.json();
+    console.log('hit here buddy')
 
     console.log(data)
     // const recentSession = await prisma.visitorSession.findFirst({
