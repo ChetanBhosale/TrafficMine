@@ -34,11 +34,16 @@ export default function ProjectScript({ children, project }) {
 
 function Analytics() {
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = "${process.env.NEXT_PUBLIC_BASE_URL}/tracker.js?projectId=${project.id}";
-    script.async = true;
-    document.body.appendChild(script);
-  }, []);
+    // Check if script already exists
+    if (!document.querySelector('script[data-analytics-tracker]')) {
+      const script = document.createElement('script');
+      script.src = "${process.env.NEXT_PUBLIC_BASE_URL}/tracker.js?projectId=${project.id}";
+      script.async = true;
+      // Add a data attribute to mark this script
+      script.setAttribute('data-analytics-tracker', 'true');
+      document.body.appendChild(script);
+    }
+  }, []); // Empty dependency array ensures it only runs once
 
   return null;
 }
@@ -77,7 +82,7 @@ export default function RootLayout({ children }) {
     react: [
       "Copy the Analytics component to a new file (e.g., components/Analytics.js).",
       "Import and add the Analytics component to your root App component.",
-      "The script will handle cleanup on component unmount.",
+      "The script will only be loaded once thanks to the data attribute check.",
     ],
     nextjs: [
       "Add the Script component to your root layout or _app file.",

@@ -42,21 +42,24 @@ model VisitorSession {
   isActive      Boolean    @default(false)
   isFinal       Boolean
   source        String
+  referrer      String?    // New field
   duration      Int        
-  pages         String[]   
-  browser       String     
-  device        String     
-  brand         String?    
+  page          String     
+  visitedPages  String[]   
   ip            String?    
-  country       String?    
-  region        String?    
-  city          String?    
-  timezone      String?    
   deviceInfo    Json?      
   browserInfo   Json?      
   errors        Json?      
+  userMetadata  Json?      
+  country       String?    // New field
+  region        String?    // New field
+  city          String?    // New field
+  timezone      String?    // New field
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
+  @@index([visitorId])
+  @@index([projectId])
+  @@index([sessionStart])
   @@map("visitor_sessions")
 }

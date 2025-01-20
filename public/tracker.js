@@ -1,9 +1,61 @@
 (function () {
   async function getUserCurrentStatus(projectId) {
+    const USER_STORAGE_KEY = `analytics_user_${projectId}`;
+    const SESSION_STORAGE_KEY = `analytics_session_${projectId}`;
+    const SESSION_TIMEOUT = 30 * 60 * 1000;
+
+    function getOrCreateUserData() {
+      let userData = localStorage.getItem(USER_STORAGE_KEY);
+      
+      if (userData) {
+        userData = JSON.parse(userData);
+        userData.lastSeen = new Date().toISOString();
+        userData.visitCount = (userData.visitCount || 0) + 1;
+      } else {
+        userData = {
+          userId: 'user_' + Math.random().toString(36).substring(2, 15),
+          firstSeen: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+          visitCount: 1,
+        };
+      }
+      
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+      return userData;
+    }
+
+    function getSessionId() {
+      let sessionData = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      
+      if (sessionData) {
+        sessionData = JSON.parse(sessionData);
+        const lastActivity = new Date(sessionData.lastActivity).getTime();
+        const now = new Date().getTime();
+        
+        if (now - lastActivity > SESSION_TIMEOUT) {
+          sessionData = createNewSession();
+        } else {
+          sessionData.lastActivity = new Date().toISOString();
+        }
+      } else {
+        sessionData = createNewSession();
+      }
+      
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+      return sessionData.sessionId;
+    }
+
+    function createNewSession() {
+      return {
+        sessionId: 'session_' + Math.random().toString(36).substring(2, 15),
+        lastActivity: new Date().toISOString(),
+      };
+    }
+
     let visitedPages = [window.location.pathname];
     let userIP = null;
     let currentSessionId = getSessionId();
-    let userId = getOrCreateUserId();
+    let userData = getOrCreateUserData();
     const startTime = Date.now();
     const errors = [];
 
@@ -84,24 +136,6 @@
       if (!visitedPages.includes(currentPage)) visitedPages.push(currentPage);
     }
 
-    function storeSessionId(sessionId) {
-      localStorage.setItem('sessionId', sessionId);
-    }
-
-    function getSessionId() {
-      return localStorage.getItem('sessionId');
-    }
-
-    function getOrCreateUserId() {
-      let userId = localStorage.getItem('userId');
-      if (!userId) {
-        userId = 'user_' + Math.random().toString(36).substring(2, 15);
-        localStorage.setItem('userId', userId);
-      }
-      return userId;
-    }
-
-    // Intercept fetch requests to track errors
     const originalFetch = window.fetch;
     window.fetch = async function (...args) {
       const startTime = Date.now();
@@ -109,7 +143,7 @@
         url: args[0],
         method: args[1]?.method || 'GET',
         timestamp: new Date().toISOString(),
-        page: window.location.pathname, // Track the current page
+        page: window.location.pathname,
       };
 
       try {
@@ -117,34 +151,31 @@
         const endTime = Date.now();
         const duration = endTime - startTime;
 
-        // Capture errors (4xx or 5xx status codes)
         if (!response.ok) {
           errors.push({
-            url: request.url, // Request URL
-            method: request.method, // HTTP method
-            status: response.status, // Status code
-            response: await response.clone().json(), // Error response
-            timestamp: request.timestamp, // Time of the request
-            page: request.page, // Current page
+            url: request.url,
+            method: request.method,
+            status: response.status,
+            response: await response.clone().json(),
+            timestamp: request.timestamp,
+            page: request.page,
           });
         }
 
         return response;
       } catch (error) {
-        // Capture network errors
         errors.push({
-          url: request.url, // Request URL
-          method: request.method, // HTTP method
-          status: 0, // Status code for network errors
-          response: error.message, // Error message
-          timestamp: request.timestamp, // Time of the request
-          page: request.page, // Current page
+          url: request.url,
+          method: request.method,
+          status: 0,
+          response: error.message,
+          timestamp: request.timestamp,
+          page: request.page,
         });
         throw error;
       }
     };
 
-    // Intercept XMLHttpRequest requests to track errors
     const originalXHR = window.XMLHttpRequest;
     window.XMLHttpRequest = function () {
       const xhr = new originalXHR();
@@ -165,28 +196,26 @@
         const endTime = Date.now();
         const duration = endTime - startTime;
 
-        // Capture errors (4xx or 5xx status codes)
         if (xhr.status >= 400) {
           errors.push({
-            url, // Request URL
-            method, // HTTP method
-            status: xhr.status, // Status code
-            response: JSON.parse(xhr.responseText || '{}'), // Error response
-            timestamp: new Date().toISOString(), // Time of the request
-            page: window.location.pathname, // Current page
+            url,
+            method,
+            status: xhr.status,
+            response: JSON.parse(xhr.responseText || '{}'),
+            timestamp: new Date().toISOString(),
+            page: window.location.pathname,
           });
         }
       };
 
       xhr.onerror = function () {
-        // Capture network errors
         errors.push({
-          url, // Request URL
-          method, // HTTP method
-          status: 0, // Status code for network errors
-          response: 'Network Error', // Error message
-          timestamp: new Date().toISOString(), // Time of the request
-          page: window.location.pathname, // Current page
+          url,
+          method,
+          status: 0,
+          response: 'Network Error',
+          timestamp: new Date().toISOString(),
+          page: window.location.pathname,
         });
       };
 
@@ -211,7 +240,13 @@
         deviceInfo,
         browserInfo,
         currentFlow: currentSessionId,
-        userId,
+        userId: userData.userId,
+        userMetadata: {
+          firstSeen: userData.firstSeen,
+          lastSeen: userData.lastSeen,
+          visitCount: userData.visitCount,
+          isReturningUser: userData.visitCount > 1
+        }
       };
 
       try {
@@ -223,7 +258,11 @@
         const responseData = await response.json();
         if (responseData?.data?.id) {
           currentSessionId = responseData.data.id;
-          storeSessionId(currentSessionId);
+          const sessionData = {
+            sessionId: currentSessionId,
+            lastActivity: new Date().toISOString()
+          };
+          sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
         }
       } catch (error) {
         console.error('Error sending initial data:', error);
@@ -245,20 +284,35 @@
         deviceInfo: getDeviceInfo(),
         browserInfo: getBrowserInfo(),
         currentFlow: currentSessionId,
-        userId,
-        errors, // Include all collected errors in the final data
+        userId: userData.userId,
+        userMetadata: {
+          firstSeen: userData.firstSeen,
+          lastSeen: userData.lastSeen,
+          visitCount: userData.visitCount,
+          isReturningUser: userData.visitCount > 1
+        },
+        errors
       };
 
       if (navigator.sendBeacon) {
-        navigator.sendBeacon('http://localhost:3000/api/open/track', JSON.stringify(data));
+        navigator.sendBeacon('http://localhost:3000/api/open/track', JSON.stringify(data)).catch((error) => {
+          sessionStorage.removeItem(SESSION_STORAGE_KEY);
+          console.error('Error sending final data:', error);
+        });
       } else {
         fetch('http://localhost:3000/api/open/track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
           keepalive: true,
-        }).catch((error) => console.error('Error sending final data:', error));
+        }).catch((error) => {
+          sessionStorage.removeItem(SESSION_STORAGE_KEY);
+          console.error('Error sending final data:', error);
+        });
       }
+
+      // Clear the currentFlow from sessionStorage
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
     }
 
     window.addEventListener('beforeunload', sendFinalData);
@@ -279,11 +333,3 @@
   const projectId = params.get('projectId');
   getUserCurrentStatus(projectId);
 })();
-
-
-// basic hero landing page (dark + white mode)
-// database design
-// best authentication system for the application
-// good dashboard and logs for the application
-// add seecurity aspect to nextjs
-// upload v1 demo of the project

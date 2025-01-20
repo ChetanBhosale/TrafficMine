@@ -6,158 +6,125 @@ const prisma = new PrismaClient();
 export async function POST(req) {
   try {
     const data = await req.json();
-    console.log('hit here buddy')
+    console.log('Received data:', data);
 
-    console.log(data)
-    // const recentSession = await prisma.visitorSession.findFirst({
-    //   where: {
-    //     visitorId: data.visitorId,
-    //   },
-    //   orderBy: {
-    //     sessionStart: 'desc',
-    //   },
-    // });
+    // Fetch location details from IP address
+    let locationInfo = {};
+    if (data.ip) {
+      try {
+    const ipResponse = await fetch(`https://ipinfo.io/${data.ip}?token=${process.env.NEXT_PUBLIC_IP}`);
+    const ipDetails = await ipResponse.json();
+    console.log(ipDetails,'ip details')
+    console.log(ipDetails,'country')
+        locationInfo = {
+          country: ipDetails.country || '',
+          region: ipDetails.region || '',
+          city: ipDetails.city || '',
+          timezone: ipDetails.timezone || '',
+        };
+      } catch (error) {
+        console.error('Error fetching IP details:', error);
+      }
+    }
 
+    console.log(locationInfo,'location info of the user')
 
-    // if (recentSession) {
-    //   const lastSessionTime = new Date(recentSession.timestamp).getTime();
-    //   const currentSessionTime = new Date(data.timestamp).getTime();
-    //   const timeDifference = Math.abs(currentSessionTime - lastSessionTime) / 1000;
-    // console.log(timeDifference)
-    //   if (timeDifference < 5) {
-    //     return NextResponse.json({ 
-    //       status: 200, 
-    //       message: 'Ignored duplicate session',
-    //       data: recentSession 
-    //     });
-    //   }
-    // }
+    // Determine the referrer
+    const referrer = data.referrer || 'direct';
 
-    // console.log(data)
+    // Check for duplicate sessions (optional)
+    const recentSession = await prisma.visitorSession.findFirst({
+      where: {
+        visitorId: data.userId,
+      },
+      orderBy: {
+        sessionStart: 'desc',
+      },
+    });
 
-    // if (data?.currentFlow) {
-    //   const updatedSession = await prisma.visitorSession.update({
-    //     where: {
-    //       id: data.currentFlow,
-          
-    //     },
-    //     data: {
-    //       sessionEnd: new Date(),
-    //       duration: data.duration,
-    //       isActive: data.isActive,
-    //       isFinal: data.isFinal,
-    //       page: data.page,
-    //       visitedPages: {
-    //         push: data.visitedPages,
-    //       },
-    //     },
-    //   });
+    if (recentSession) {
+      const lastSessionTime = new Date(recentSession.sessionStart).getTime();
+      const currentSessionTime = new Date(data.timestamp).getTime();
+      const timeDifference = Math.abs(currentSessionTime - lastSessionTime) / 1000;
 
-    //   return NextResponse.json({ status: 200, data: updatedSession });
-    // }
+      // Ignore duplicate sessions within 5 seconds
+      if (timeDifference < 5) {
+        return NextResponse.json({
+          status: 200,
+          message: 'Ignored duplicate session',
+          data: recentSession,
+        });
+      }
+    }
 
-    // const ipResponse = await fetch(`https://ipinfo.io/${data.ip}?token=${process.env.NEXT_PUBLIC_IP}`);
-    // const ipDetails = await ipResponse.json();
+    // If currentFlow exists, check if the session exists
+    if (data?.currentFlow) {
+      const existingSession = await prisma.visitorSession.findUnique({
+        where: {
+          id: data.currentFlow,
+        },
+      });
 
-    // const deviceInfo = await prisma.deviceInfo.create({
-    //   data: {
-    //     deviceType: data.deviceInfo.deviceType,
-    //     deviceModel: data.deviceInfo.deviceModel,
-    //     operatingSystem: data.deviceInfo.operatingSystem,
-    //   },
-    // });
+      // If the session exists, update it
+      if (existingSession) {
+        const updatedSession = await prisma.visitorSession.update({
+          where: {
+            id: data.currentFlow,
+          },
+          data: {
+            sessionEnd: new Date(),
+            duration: data.duration,
+            isActive: data.isActive,
+            isFinal: data.isFinal,
+            page: data.page,
+            visitedPages: {
+              push: data.visitedPages,
+            },
+          },
+        });
 
-    // console.log(ipDetails)
+        return NextResponse.json({ status: 200, data: updatedSession });
+      }
+    }
 
-    // const browserInfo = await prisma.browserInfo.create({
-    //   data: {
-    //     browserName: data.browserInfo.browserName,
-    //     browserVersion: data.browserInfo.browserVersion,
-    //   },
-    // });
+    // If currentFlow doesn't exist or the session doesn't exist, create a new session
+    const visitorSession = await prisma.visitorSession.create({
+      data: {
+        project: {
+          connect: {
+            id: data.projectId,
+          },
+        },
+        visitorId: data.userId,
+        sessionStart: new Date(data.timestamp),
+        sessionEnd: new Date(),
+        source: data.source,
+        duration: data.duration,
+        isActive: data.isActive,
+        isFinal: data.isFinal,
+        page: data.page,
+        visitedPages: data.visitedPages,
+        ip: data.ip,
+        deviceInfo: data.deviceInfo,
+        browserInfo: data.browserInfo,
+        errors: data.errors,
+        userMetadata: data.userMetadata,
+        referrer: referrer, 
+        country: locationInfo.country, 
+        region: locationInfo.region, 
+        city: locationInfo.city,
+        timezone: locationInfo.timezone, 
+      },
+    });
 
-    // const locationInfo = await prisma.locationInfo.create({
-    //   data: {
-    //     country: ipDetails.country ?? '',
-    //     region: ipDetails.region ?? '',
-    //     city: ipDetails.city ?? '',
-    //     timezone: ipDetails.timezone ?? '',
-    //   },
-    // });
+    // console.log('Session created:', visitorSession);
 
-    // const visitorSession = await prisma.visitorSession.create({
-    //   data: {
-    //     project: {
-    //       connect: {
-    //         id: data.projectId,
-    //       },
-    //     },
-    //     visitorId: data.visitorId,
-    //     sessionStart: new Date(data.timestamp),
-    //     sessionEnd: new Date(),
-    //     source: data.source,
-    //     duration: data.duration,
-    //     isActive: data.isActive,
-    //     isFinal: data.isFinal,
-    //     page: data.page,
-    //     visitedPages: data.visitedPages,
-    //     deviceInfo: {
-    //       connect: {
-    //         id: deviceInfo.id,
-    //       },
-    //     },
-    //     browserInfo: {
-    //       connect: {
-    //         id: browserInfo.id,
-    //       },
-    //     },
-    //     LocationInfo: {
-    //       connect: {
-    //         id: locationInfo.id,
-    //       },
-    //     },
-    //   },
-    // });
-
-    // console.log(visitorSession,'session')
-
-    return NextResponse.json({ status: 201, data:data });
+    return NextResponse.json({ status: 201, data: visitorSession });
   } catch (error) {
-    console.log({ error: 'Failed to track', details: error.message });
+    console.error('Failed to track session:', error.message);
     return NextResponse.json(
-      { error: 'Failed to track', details: error.message },
+      { error: 'Failed to track session', details: error.message },
       { status: 500 }
     );
   }
 }
-
-
-
-// import { useEffect } from 'react';
-
-// export default function Analytics() {
-//   useEffect(() => {
-//     const existingScript = document.querySelector('script[src*="tracker.js"]');
-    
-//     if (!existingScript) {
-//       const script = document.createElement('script');
-//       script.src = "http://localhost:3000/tracker.js?projectId=04ad1d94";
-//       script.async = true;
-//       script.id = "analytics-script";
-//       document.body.appendChild(script);
-//     }
-    
-//     return () => {
-//       if (document.querySelector('script[src*="tracker.js"]') && !document.hidden) {
-//         const script = document.querySelector('script[src*="tracker.js"]');
-//         if (script) {
-//           const event = new Event('beforeunload');
-//           window.dispatchEvent(event);
-//           script.remove();
-//         }
-//       }
-//     };
-//   }, []);
-
-//   return null;
-// }
