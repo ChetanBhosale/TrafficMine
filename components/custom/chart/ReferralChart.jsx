@@ -21,16 +21,12 @@ const ReferralSourcesList = ({ data }) => {
   const sourceConfig = {
     twitter: { icon: FaTwitter, color: "#1DA1F2", name: "Twitter" },
     facebook: { icon: FaFacebook, color: "#4267B2", name: "Facebook" },
-    instagram: { icon: FaInstagram, color: "#E1306C", name: "Instagram" },
     linkedin: { icon: FaLinkedin, color: "#0077B5", name: "LinkedIn" },
     youtube: { icon: FaYoutube, color: "#FF0000", name: "YouTube" },
     reddit: { icon: FaReddit, color: "#FF4500", name: "Reddit" },
     pinterest: { icon: FaPinterest, color: "#E60023", name: "Pinterest" },
     tiktok: { icon: FaTiktok, color: "#000000", name: "TikTok" },
-    snapchat: { icon: FaSnapchat, color: "#FFFC00", name: "Snapchat" },
-    search: { icon: FaSearch, color: "#4285F4", name: "Search" },
     google: { icon: FaGoogle, color: "#4285F4", name: "Google" },
-    yahoo: { icon: FaYahoo, color: "#720E9E", name: "Yahoo" },
     direct: { icon: TiDirections, color: "#42832A", name: "Direct/None" },
     unknown: { icon: FaQuestionCircle, color: "#9CA3AF", name: "Unknown" },
   }

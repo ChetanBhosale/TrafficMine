@@ -8,23 +8,24 @@ import { getCountryName } from "@/lib/countryCode";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-export default function VisitorWorldMap({ visitorData }) {
+export default function VisitorWorldMap({ visitorData = [] }) {
   const { theme } = useTheme();
   const [hoveredCountry, setHoveredCountry] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   // Count visitors by country
+
   const countryCounts = visitorData.reduce((acc, session) => {
+    console.log(session,'sessionss')
     const country = session.countries; // Ensure this is the correct field
     if (country) {
       const countryName = getCountryName(country);
-      acc[countryName] = (acc[countryName] || 0) + 1;
+      acc[countryName] = (acc[countryName] || 0) + (session.visitors || 1); // Use session.visitors or default to 1
     }
     return acc;
   }, {});
 
-  console.log("Country Counts:", countryCounts); // Debugging: Log the country counts
-
+  console.log(countryCounts,'countryCounts')
   const colorScale = scaleQuantile()
     .domain(Object.values(countryCounts))
     .range(["#ffedea", "#ffcec5", "#ffad9f", "#ff8a75", "#ff5533", "#e2492d", "#be3d26", "#9a311f", "#782618"]);
@@ -72,13 +73,13 @@ export default function VisitorWorldMap({ visitorData }) {
                 const countryName = geo.properties.name;
                 const visitors = countryCounts[countryName] || 0;
                 if (visitors > 0) {
-                  const [longitude, latitude] = geo.geometry.coordinates[0][0]; // Get the first coordinate of the country
+                  const [longitude, latitude] = geo.properties.center; // Use centroid coordinates
                   return (
                     <Marker key={countryName} coordinates={[longitude, latitude]}>
-                      {/* <circle r={Math.sqrt(visitors) * 2} fill="#ff5533" stroke="#fff" strokeWidth={1} opacity={0.8} /> */}
-                      {/* <text x={5} y={-5} fontSize={10} fill={theme === "dark" ? "#fff" : "#000"} textAnchor="middle">
+                      <circle r={Math.sqrt(visitors) * 2} fill="#ff5533" stroke="#fff" strokeWidth={1} opacity={0.8} />
+                      <text x={5} y={-5} fontSize={10} fill={theme === "dark" ? "#fff" : "#000"} textAnchor="middle">
                         {visitors}
-                      </text> */}
+                      </text>
                     </Marker>
                   );
                 }
