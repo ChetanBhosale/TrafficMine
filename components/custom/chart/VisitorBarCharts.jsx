@@ -19,6 +19,8 @@ export default function VisitorLineChart({ data }) {
                 <FiUsers className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
+              
+              
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Visitors</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                   {totalVisitors.toLocaleString()}
