@@ -1,32 +1,33 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import { getSingleProject } from "@/app/actions/projects";
 import { getVisitorSessions } from "@/app/actions/visitorSession";
 import InfoHeader from "@/components/custom/Info/infoHeader";
 import InfoProjectSkeleton from "@/components/custom/Info/InfoProjectSkeleton";
-import VisitorLineChart from "@/components/custom/chart/VisitorBarCharts";
 import TimelineDropdown from "@/components/custom/Info/TimeLine";
 import { Switch } from "@/components/ui/switch";
-import VisitorWorldMap from "@/components/custom/Info/VisitorWorldMap";
-import ReferralSourcesList from "@/components/custom/chart/ReferralChart";
-import DeviceDistribution from "@/components/custom/chart/DeviceDistribution";
 import { FiCalendar } from "react-icons/fi";
 import toast from "react-hot-toast";
-import UserVisitsInsights from "@/components/custom/chart/UserVisitsInsights";
+import TrafficOverviewChart from "@/components/custom/chart/TrafficOverviewChart";
+import SummaryCards from "@/components/custom/chart/SummaryCards";
+import VisitorWorldMap from "@/components/custom/chart/VisitorWorldMap";
+import ReferralSourcesList from "@/components/custom/chart/ReferralSourcesList";
 
 const ProjectPage = () => {
   const session = useSession();
   const router = useRouter();
   const getParams = useParams();
   const [projectInfo, setProjectInfo] = useState(null);
-  const [selectedTimeline, setSelectedTimeline] = useState("Last 24 Hours");
-  const [visitorData, setVisitorData] = useState({ timelineData: [], referralData: [], deviceData: [] });
-  const [loader, setLoader] = useState(false);
+  const [selectedTimeline, setSelectedTimeline] = useState("Last Week");
+  const [visitorData, setVisitorData] = useState({ timelineData: [], referralData: [], mapData: [] });
+  const [isLoading, setIsLoading] = useState(true); 
   const [showUniqueVisitors, setShowUniqueVisitors] = useState(false);
+  const [initial,setInitial] = useState(0)
 
+  // Fetch project data
   async function fetchProjectData(projectId, userId) {
     const data = await getSingleProject(projectId, userId);
     if (data?.status === 200) {
@@ -37,50 +38,39 @@ const ProjectPage = () => {
     }
   }
 
+  // Fetch visitor data
   async function fetchVisitorData(projectId, timeline) {
-    if (visitorData?.timelineData.length === 0 && visitorData?.referralData.length === 0) {
-      setLoader(true);
+    
+    if(initial == 0){ 
+      setIsLoading(true);
+      setInitial(1)
     }
-
-    const response = await getVisitorSessions(projectId, timeline);
-    if (response?.status === 200) {
-      console.log(response.data, 'reso')
-      const transformedData = transformDataForChart(response.data, showUniqueVisitors, timeline);
-      console.log(transformedData,'transformedData transformedData transformedData')
-      setLoader(false);
-      setVisitorData(transformedData);
-    } else {
-      toast.error("Failed to fetch visitor data");
+    try {
+      const response = await getVisitorSessions(projectId, timeline);
+      if (response?.status === 200) {
+        const transformedData = transformDataForChart(response.data, showUniqueVisitors, timeline);
+        setVisitorData((prevData) => ({
+          timelineData: transformedData.timelineData,
+          referralData: transformedData.referralData,
+          mapData: transformedData.mapData,
+        }));
+      } else {
+        toast.error("Failed to fetch visitor data");
+      }
+    } catch (error) {
+      toast.error("An error occurred while fetching data");
+    } finally {
+      setIsLoading(false);
     }
-    setLoader(false);
   }
+
+  // Transform data for the chart
   const transformDataForChart = (sessions, showUniqueVisitors, timeline) => {
     const now = new Date();
     let labels = [];
     let groupedData = {};
-    // Extract referral data
-    const referralData = sessions.reduce((acc, session) => {
-      const source = session.source || "direct";
-      if (!acc[source]) {
-        acc[source] = { visitors: new Set(), countries: new Set() };
-      }
-      if (showUniqueVisitors) {
-        acc[source].visitors.add(session.visitorId); // Track unique visitors
-      } else {
-        acc[source].visitors.add(session.id); // Track all visitors
-      }
-      if (session.country) {
-        acc[source].countries.add(session.country);
-      }
-      return acc;
-    }, {});
-  
-    const referralChartData = Object.keys(referralData).map((source) => ({
-      source,
-      visitors: referralData[source].visitors.size,
-    }));
-  
-    // Extract timeline data
+
+    // Generate labels based on the selected timeline
     switch (timeline) {
       case "Last 24 Hours":
         labels = Array.from({ length: 24 }, (_, i) => {
@@ -103,7 +93,7 @@ const ProjectPage = () => {
       default:
         labels = [];
     }
-  
+
     // Group data by timeline
     groupedData = sessions.reduce((acc, session) => {
       let label;
@@ -120,38 +110,27 @@ const ProjectPage = () => {
         default:
           label = "";
       }
-  
+
       if (!acc[label]) {
-        acc[label] = { visitors: new Set(), activeUsers: new Set(), countries: new Set(), devices: { desktop: 0, mobile: 0, tablet: 0 } };
+        acc[label] = { visitors: 0, uniqueVisitors: new Set(), activeUsers: new Set() };
       }
-      if (showUniqueVisitors) {
-        acc[label].visitors.add(session.visitorId); // Track unique visitors
-      } else {
-        acc[label].visitors.add(session.id); // Track all visitors
-      }
+      acc[label].visitors += 1;
+      acc[label].uniqueVisitors.add(session.visitorId);
       if (session.isActive) {
-        acc[label].activeUsers.add(session.visitorId); // Track active users
-      }
-      if (session.country) {
-        acc[label].countries.add(session.country);
-      }
-      if (session.deviceInfo?.deviceType) {
-        acc[label].devices[session.deviceInfo.deviceType] += 1;
+        acc[label].activeUsers.add(session.visitorId);
       }
       return acc;
     }, {});
-  
-    // Prepare timeline data for the line chart
+
+    // Prepare data for the chart
     const timelineData = labels.map((label) => ({
       label,
-      visitors: groupedData[label] ? groupedData[label].visitors.size : 0,
-      activeUsers: groupedData[label] ? groupedData[label].activeUsers.size : 0,
-      countries: groupedData[label] ? Array.from(groupedData[label].countries) : [],
-      devices: groupedData[label] ? groupedData[label].devices : { desktop: 0, mobile: 0, tablet: 0 },
+      visitors: groupedData[label]?.visitors || 0,
+      uniqueVisitors: groupedData[label]?.uniqueVisitors.size || 0,
+      activeUsers: groupedData[label]?.activeUsers.size || 0,
     }));
-  
+
     // Prepare map data for the world map
-    console.log(session,'sessionssss')
     const mapData = sessions.reduce((acc, session) => {
       if (session.country) {
         if (!acc[session.country]) {
@@ -166,62 +145,50 @@ const ProjectPage = () => {
       return acc;
     }, {});
 
-    console.log(mapData,'map data is not working')
-  
     const mapChartData = Object.keys(mapData).map((country) => ({
       country,
       visitors: mapData[country].visitors.size,
     }));
-  
-    // Prepare device data for the device distribution
-    const deviceData = sessions.reduce((acc, session) => {
-      const deviceType = session.deviceInfo?.deviceType || "desktop";
-      const duration = session.duration || 0;
-  
-      if (!acc[deviceType]) {
-        acc[deviceType] = { visitors: new Set(), totalDuration: 0, browsers: {} };
+
+    // Prepare referral data
+    const referralData = sessions.reduce((acc, session) => {
+      const source = session.source || "direct";
+      if (!acc[source]) {
+        acc[source] = { visitors: new Set() };
       }
       if (showUniqueVisitors) {
-        acc[deviceType].visitors.add(session.visitorId); // Track unique visitors
+        acc[source].visitors.add(session.visitorId); // Track unique visitors
       } else {
-        acc[deviceType].visitors.add(session.id); // Track all visitors
+        acc[source].visitors.add(session.id); // Track all visitors
       }
-      acc[deviceType].totalDuration += duration;
-  
-      // Track browser usage
-      const browserName = session.browserInfo?.browserName || "Unknown";
-      if (!acc[deviceType].browsers[browserName]) {
-        acc[deviceType].browsers[browserName] = 0;
-      }
-      acc[deviceType].browsers[browserName] += 1;
-  
       return acc;
     }, {});
-  
+
+    const referralChartData = Object.keys(referralData).map((source) => ({
+      source,
+      visitors: referralData[source].visitors.size,
+    }));
+
     return {
-      timelineData, // For the line chart
-      referralData: referralChartData, // For the referral chart
-      mapData: mapChartData, // For the world map
-      pageVisitsData: sessions.map((session) => ({
-        sessionId: session.id,
-        visitorId: session.visitorId,
-        firstPage: session.visitedPages?.[0] || "N/A",
-        lastPage: session.visitedPages?.[session.visitedPages.length - 1] || "N/A",
-        duration: session.duration || 0,
-        visitedPages: session.visitedPages || [],
-      })), // For the user visits insights
-      deviceData: Object.keys(deviceData).map((deviceType) => ({
-        deviceType,
-        count: deviceData[deviceType].visitors.size,
-        averageDuration: (deviceData[deviceType].totalDuration / deviceData[deviceType].visitors.size || 0).toFixed(2),
-        browsers: deviceData[deviceType].browsers,
-      })), // For the device distribution
+      timelineData,
+      referralData: referralChartData,
+      mapData: mapChartData,
     };
   };
 
+  // Handle timeline change
+  const handleTimelineChange = (timeline) => {
+    setSelectedTimeline(timeline);
+    fetchVisitorData(getParams.id[0], timeline);
+  };
 
-  console.log(visitorData.mapData,'visitor map data')
+  // Handle unique visitors toggle
+  const handleToggle = () => {
+    setShowUniqueVisitors(!showUniqueVisitors);
+    fetchVisitorData(getParams.id[0], selectedTimeline);
+  };
 
+  // Fetch data on mount
   useEffect(() => {
     if (session?.status === "unauthenticated") {
       router.push("/");
@@ -232,27 +199,20 @@ const ProjectPage = () => {
     }
   }, [session, selectedTimeline, showUniqueVisitors]);
 
-  const handleTimelineChange = (timeline) => {
-    setSelectedTimeline(timeline);
-    fetchVisitorData(getParams.id[0], timeline);
-  };
-
-  const handleToggle = () => {
-    setShowUniqueVisitors(!showUniqueVisitors);
-  };
-
-  if (session?.status === "loading" || loader === true) {
+  // Loading state
+  if (session?.status === "loading" || isLoading) {
     return <InfoProjectSkeleton />;
   }
 
-return (
+  return (
     <div className="mt-16 p-6">
       <InfoHeader projectInfo={projectInfo} />
 
+      {/* Filters */}
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <FiCalendar className="text-gray-600 dark:text-gray-400" />
-          <TimelineDropdown onSelectTimeline={handleTimelineChange} />
+          <TimelineDropdown onSelectTimeline={handleTimelineChange} selectedTimeline={selectedTimeline} />
         </div>
         <div className="flex items-center space-x-2">
           <Switch checked={showUniqueVisitors} onCheckedChange={handleToggle} />
@@ -262,30 +222,28 @@ return (
         </div>
       </div>
 
-      <h2 className="mt-8 text-2xl font-bold mb-2 text-gray-800 dark:text-gray-200">Visitor Analytics</h2>
+      {/* Traffic Overview */}
+      <h2 className="mt-8 text-2xl font-bold mb-2 text-gray-800 dark:text-gray-200">Traffic Overview</h2>
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
         Showing visitor data for the {selectedTimeline.toLowerCase()}.
       </p>
 
-      <div className="space-y-8">
-        <Suspense fallback={<div className="h-[400px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg"></div>}>
-          <VisitorLineChart data={visitorData.timelineData} />
-        </Suspense>
+      {/* Summary Cards */}
+      <SummaryCards data={visitorData.timelineData} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Suspense fallback={<div className="h-[400px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg col-span-2"></div>}>
-            <VisitorWorldMap visitorData={visitorData.mapData} />
-          </Suspense>
-          <Suspense fallback={<div className="h-[400px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg"></div>}>
-            <ReferralSourcesList data={visitorData.referralData} />
-          </Suspense>
+      {/* Line Chart */}
+      {isLoading ? (
+        <div className="h-96 flex items-center justify-center">
+          <p className="text-gray-600 dark:text-gray-400">Loading chart data...</p>
         </div>
+      ) : (
+        <TrafficOverviewChart data={visitorData.timelineData} />
+      )}
 
-        {/* Add Device Distribution and User Visits Insights Components */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <DeviceDistribution data={visitorData.deviceData} />
-          <UserVisitsInsights data={visitorData.pageVisitsData} />
-        </div>
+      {/* Grid Layout for VisitorWorldMap and ReferralSourcesList */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        <VisitorWorldMap visitorData={visitorData.mapData} />
+        <ReferralSourcesList data={visitorData.referralData} />
       </div>
     </div>
   );

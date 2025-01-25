@@ -1,40 +1,23 @@
-'use client';
+import React from "react";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
-export default function TimelineDropdown({ onSelectTimeline }) {
-  const [selectedTimeline, setSelectedTimeline] = useState('Last 24 Hours');
-
-  const handleTimelineChange = (timeline) => {
-    setSelectedTimeline(timeline);
-    onSelectTimeline(timeline);
+const TimelineDropdown = ({ onSelectTimeline,selectedTimeline }) => {
+  const handleChange = (event) => {
+    const selectedValue = event.target.value;
+    console.log("Selected Timeline:", selectedValue); // Debugging log
+    onSelectTimeline(selectedValue);
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="ml-4">
-          {selectedTimeline}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuItem onClick={() => handleTimelineChange('Last 24 Hours')}>
-          Last 24 Hours
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleTimelineChange('Last Week')}>
-          Last Week
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleTimelineChange('Last Month')}>
-          Last Month
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <select
+      onChange={handleChange}
+      defaultValue={selectedTimeline}
+      className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm text-gray-700 dark:text-gray-300"
+    >
+      <option value="Last 24 Hours">Last 24 Hours</option>
+      <option value="Last Week">Last Week</option>
+      <option value="Last Month">Last Month</option>
+    </select>
   );
-}
+};
+
+export default TimelineDropdown;
