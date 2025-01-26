@@ -46,7 +46,6 @@ const CreateProjectModel = ({ isOpen, setOpen }) => {
     let toastLoad = toast.loading('Creating project...')
     setLoading(true)
     if (validateForm()) {
-      console.log("Form submitted:", { title, link })
       let createProject = await fetch('/api/project', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

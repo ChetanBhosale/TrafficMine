@@ -1,79 +1,49 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth_config";
-import { NextRequest, NextResponse } from "next/server";
-import { checkWebsiteExists, getFavicon } from "@/services/web_validation";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db_conn";
 
 export async function POST(req) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ message: "You are not logged in" }, { status: 401 });
-        }
-
         const data = await req.json();
-        console.log(data,'is this working')
 
-        if(data?.webUrl?.startsWith('www')){
-            data.webUrl = data?.webUrl?.replace('www.', 'https://')
-        }else if(!data?.webUrl?.startsWith('https://')){
-            data.webUrl = `https://${data?.webUrl}`
+        // Validate required fields
+        if (!data.projectId || !data.userId || !data.timestamp) {
+            return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
         }
 
-        if (!data.projectName || !data.webUrl) {
-            return NextResponse.json({ message: "Please provide project name and web url" }, { status: 400 });
-        }
-
-        // validating links
-
-        // let checkUrlExists = await prisma.project.findFirst({
-        //     where : {
-        //         url : data.webUrl,
-        //         userId: session.user.id
-        //     }
-        // })
-
-        console.log(session?.user?.id,'user session')
-
-        let checkUrlExists = await prisma.project.findFirst({
-           where : {
-            link : data.webUrl,
-            userId : session.user.id
-           }
-        })
-
-        if(checkUrlExists){
-            return NextResponse.json({ message: "Project with this url already exists" }, { status: 400 });
-        }
-
-
-
-        let validateWebUrl = await checkWebsiteExists(data.webUrl);
-        
-        if(!validateWebUrl){
-            return NextResponse.json({ message: "Web url is not valid" }, { status: 400 });
-        }
-
-        let fevicon = await getFavicon(data.webUrl);
-
-
-        let project = await prisma.project.create({
-            data: {
-                name : data.projectName,
-                description : '',
-                userId : session.user.id,
-                link : data.webUrl,
-                image : fevicon
-            }
+        const session = await prisma.visitorSession.upsert({
+            where: {
+                id: data.currentFlow, 
+            },
+            update: {
+                sessionEnd: new Date().toISOString(),
+                duration: data.duration,
+                isActive: data.isActive,
+                isFinal: data.isFinal,
+                visitedPages: data.visitedPages,
+                errors: data.errors,
+            },
+            create: {
+                projectId: data.projectId,
+                visitorId: data.userId,
+                sessionStart: new Date(data.timestamp),
+                sessionEnd: new Date(data.timestamp),
+                isActive: data.isActive,
+                isFinal: data.isFinal,
+                source: data.source,
+                duration: data.duration,
+                page: data.page,
+                visitedPages: data.visitedPages,
+                ip: data.ip,
+                deviceInfo: data.deviceInfo,
+                browserInfo: data.browserInfo,
+                userMetadata: data.userMetadata,
+                errors: data.errors,
+            },
         });
 
-        if(project){    
-            return NextResponse.json({ message: "Project created successfully" }, { status: 200 });
-        }
-
-        return NextResponse.json({ message : 'Project creating failed!' }, { status: 301 });
+        return NextResponse.json({ message: "Session tracked successfully", data: session }, { status: 200 });
     } catch (error) {
-        console.log(JSON.stringify(error))
+        console.error("Error tracking session:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

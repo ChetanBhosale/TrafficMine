@@ -12,8 +12,6 @@ export const checkUserExistsOrCreate = async (user) => {
         }
       })
 
-      console.log(checkUserExists,'is this existsss')
-
       if(checkUserExists){
         return checkUserExists
       }else{

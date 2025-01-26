@@ -16,19 +16,15 @@ const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 // Count visitors by country
 
 const countryCounts = visitorData.reduce((acc, session) => {
-  console.log(session,'sessionss')
-  console.log(session,'sessionsss')
+
   const country = session?.country || ''; // Ensure this is the correct field
   if (country) {
     const countryName = getCountryName(country);
     acc[countryName] = (acc[countryName] || 0) + (session.visitors || 1);
-    console.log(acc[countryName],'is it working now???')
   }
-  console.log(acc,'acc')
   return acc;
 }, {});
 
-console.log(countryCounts,'countryCounts')
 
 
 const colorScale = scaleQuantile()

@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -15,6 +15,8 @@ import TrafficOverviewChart from "@/components/custom/chart/TrafficOverviewChart
 import SummaryCards from "@/components/custom/chart/SummaryCards";
 import VisitorWorldMap from "@/components/custom/chart/VisitorWorldMap";
 import ReferralSourcesList from "@/components/custom/chart/ReferralSourcesList";
+import RetentionChart from "@/components/custom/chart/RetentionChart";
+import CombinedChart from "@/components/custom/chart/CombinedChart";
 
 const ProjectPage = () => {
   const session = useSession();
@@ -22,53 +24,72 @@ const ProjectPage = () => {
   const getParams = useParams();
   const [projectInfo, setProjectInfo] = useState(null);
   const [selectedTimeline, setSelectedTimeline] = useState("Last Week");
-  const [visitorData, setVisitorData] = useState({ timelineData: [], referralData: [], mapData: [] });
-  const [isLoading, setIsLoading] = useState(true); 
+  const [visitorData, setVisitorData] = useState({
+    timelineData: [],
+    referralData: [],
+    mapData: [],
+  });
+  const [retentionData, setRetentionData] = useState([]);
+  const [combinedData, setCombinedData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showUniqueVisitors, setShowUniqueVisitors] = useState(false);
-  const [initial,setInitial] = useState(0)
+  const [initial, setInitial] = useState(0);
 
   // Fetch project data
   async function fetchProjectData(projectId, userId) {
-    const data = await getSingleProject(projectId, userId);
-    if (data?.status === 200) {
-      setProjectInfo(data?.data);
-    } else {
-      toast.error("Project not found");
-      router.push("/dashboard");
+    try {
+      const data = await getSingleProject(projectId, userId);
+      if (data?.status === 200) {
+        setProjectInfo(data?.data);
+      } else {
+        toast.error("Project not found");
+        router.push("/dashboard");
+      }
+    } catch (error) {
+      console.error("Error fetching project data:", error);
+      toast.error("An error occurred while fetching project data");
     }
   }
 
-  // Fetch visitor data
+  // Fetch visitor data and transform it for charts
   async function fetchVisitorData(projectId, timeline) {
-    
-    if(initial == 0){ 
+    if (initial === 0) {
       setIsLoading(true);
-      setInitial(1)
+      setInitial(1);
     }
     try {
       const response = await getVisitorSessions(projectId, timeline);
       if (response?.status === 200) {
+        console.log("Fetched sessions:", response.data); // Log fetched sessions
         const transformedData = transformDataForChart(response.data, showUniqueVisitors, timeline);
         setVisitorData((prevData) => ({
+          ...prevData,
           timelineData: transformedData.timelineData,
           referralData: transformedData.referralData,
           mapData: transformedData.mapData,
         }));
+
+        const retention = calculateRetention(response.data, timeline);
+        setRetentionData(retention);
+
+        const combined = calculateCombinedMetrics(response.data, timeline);
+        console.log("Combined metrics data:", combined); // Log combined metrics
+        setCombinedData(combined);
       } else {
         toast.error("Failed to fetch visitor data");
       }
     } catch (error) {
+      console.error("Error fetching visitor data:", error);
       toast.error("An error occurred while fetching data");
     } finally {
       setIsLoading(false);
     }
   }
 
-  // Transform data for the chart
+  // Transform data for Traffic Overview, Referral, and Map
   const transformDataForChart = (sessions, showUniqueVisitors, timeline) => {
     const now = new Date();
     let labels = [];
-    let groupedData = {};
 
     // Generate labels based on the selected timeline
     switch (timeline) {
@@ -95,7 +116,7 @@ const ProjectPage = () => {
     }
 
     // Group data by timeline
-    groupedData = sessions.reduce((acc, session) => {
+    const groupedData = sessions.reduce((acc, session) => {
       let label;
       switch (timeline) {
         case "Last 24 Hours":
@@ -176,6 +197,176 @@ const ProjectPage = () => {
     };
   };
 
+  // Calculate retention rate
+  const calculateRetention = (sessions, timeline) => {
+    const now = new Date();
+    const retentionData = [];
+
+    // Group sessions by visitorId and calculate return visits
+    const userSessions = sessions.reduce((acc, session) => {
+      if (!acc[session.visitorId]) {
+        acc[session.visitorId] = [];
+      }
+      acc[session.visitorId].push(new Date(session.sessionStart));
+      return acc;
+    }, {});
+
+    // Calculate retention rate based on timeline
+    switch (timeline) {
+      case "Last 24 Hours":
+        for (let hour = 0; hour < 24; hour++) {
+          const hourLabel = `${hour}:00`;
+          const returningUsers = Object.values(userSessions).filter((sessionDates) => {
+            return sessionDates.some((date) => date.getHours() === hour);
+          }).length;
+          retentionData.push({
+            label: hourLabel,
+            retentionRate:((returningUsers / sessions.length) * 100).toFixed(2),
+          });
+        }
+        break;
+
+      case "Last Week":
+        for (let day = 0; day < 7; day++) {
+          const dayLabel = new Date(now - day * 24 * 60 * 60 * 1000).toLocaleDateString([], {
+            weekday: "short",
+          });
+          const returningUsers = Object.values(userSessions).filter((sessionDates) => {
+            return sessionDates.some((date) => date.getDay() === (now.getDay() - day + 7) % 7);
+          }).length;
+          retentionData.push({
+            label: dayLabel,
+            retentionRate: ((returningUsers / sessions.length) * 100).toFixed(2),
+          });
+        }
+        break;
+
+      case "Last Month":
+        for (let day = 0; day < 30; day++) {
+          const dayLabel = new Date(now - day * 24 * 60 * 60 * 1000).toLocaleDateString([], {
+            day: "numeric",
+            month: "short",
+          });
+          const returningUsers = Object.values(userSessions).filter((sessionDates) => {
+            return sessionDates.some((date) => date.getDate() === new Date(now - day * 24 * 60 * 60 * 1000).getDate());
+          }).length;
+          retentionData.push({
+            label: dayLabel,
+            retentionRate: ((returningUsers / sessions.length) * 100).toFixed(2),
+          });
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    return retentionData;
+  };
+
+  // Calculate combined metrics (avg duration, bounce rate, engagement rate)
+  const calculateCombinedMetrics = (sessions, timeline) => {
+    const now = new Date();
+    const combinedData = [];
+  
+    // Group sessions by visitorId to track returning users
+    const userSessions = sessions.reduce((acc, session) => {
+      if (!acc[session.visitorId]) {
+        acc[session.visitorId] = [];
+      }
+      acc[session.visitorId].push(new Date(session.sessionStart));
+      return acc;
+    }, {});
+  
+    // Generate labels for all dates in the selected timeline
+    let labels = [];
+    switch (timeline) {
+      case "Last 24 Hours":
+        labels = Array.from({ length: 24 }, (_, i) => {
+          const hour = new Date(now - i * 60 * 60 * 1000);
+          return hour.toLocaleTimeString([], { hour: "2-digit", hour12: false });
+        }).reverse();
+        break;
+      case "Last Week":
+        labels = Array.from({ length: 7 }, (_, i) => {
+          const day = new Date(now - i * 24 * 60 * 60 * 1000);
+          return day.toLocaleDateString([], { weekday: "short" });
+        }).reverse();
+        break;
+      case "Last Month":
+        labels = Array.from({ length: 30 }, (_, i) => {
+          const date = new Date(now - i * 24 * 60 * 60 * 1000);
+          return date.toLocaleDateString([], { day: "numeric", month: "short" });
+        }).reverse();
+        break;
+      default:
+        labels = [];
+    }
+  
+    // Group sessions by timeline
+    const groupedSessions = sessions.reduce((acc, session) => {
+      let label;
+      switch (timeline) {
+        case "Last 24 Hours":
+          label = new Date(session.sessionStart).toLocaleTimeString([], { hour: "2-digit", hour12: false });
+          break;
+        case "Last Week":
+          label = new Date(session.sessionStart).toLocaleDateString([], { weekday: "short" });
+          break;
+        case "Last Month":
+          label = new Date(session.sessionStart).toLocaleDateString([], { day: "numeric", month: "short" });
+          break;
+        default:
+          label = "";
+      }
+  
+      if (!acc[label]) {
+        acc[label] = { sessions: [], bounceSessions: 0, engagedSessions: 0, returningUsers: 0 };
+      }
+      acc[label].sessions.push(session);
+      if (session.visitedPages.length === 1) {
+        acc[label].bounceSessions++;
+      } else {
+        acc[label].engagedSessions++;
+      }
+  
+      // Check if the user has returned
+      if (userSessions[session.visitorId]?.length > 1) {
+        acc[label].returningUsers++;
+      }
+  
+      return acc;
+    }, {});
+  
+    // Fill in data for all labels, even if there's no data
+    labels.forEach((label) => {
+      const group = groupedSessions[label] || {
+        sessions: [],
+        bounceSessions: 0,
+        engagedSessions: 0,
+        returningUsers: 0,
+      };
+  
+      const totalSessions = group.sessions.length;
+      const avgDuration =
+        totalSessions > 0
+          ? parseFloat((group.sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / totalSessions).toFixed(2))
+          : 0;
+      const bounceRate = totalSessions > 0 ? parseFloat(((group.bounceSessions / totalSessions) * 100).toFixed(2)) : 0;
+      const engagementRate = totalSessions > 0 ? parseFloat(((group.engagedSessions / totalSessions) * 100).toFixed(2)) : 0;
+      const returningUsersPercentage = totalSessions > 0 ? parseFloat(((group.returningUsers / totalSessions) * 100).toFixed(2)) : 0;
+  
+      combinedData.push({
+        label,
+        avgDuration,
+        bounceRate,
+        engagementRate,
+        returningUsersPercentage,
+      });
+    });
+  
+    return combinedData;
+  };
   // Handle timeline change
   const handleTimelineChange = (timeline) => {
     setSelectedTimeline(timeline);
@@ -240,10 +431,18 @@ const ProjectPage = () => {
         <TrafficOverviewChart data={visitorData.timelineData} />
       )}
 
+      {/* Grid Layout for Retention Chart and Combined Chart */}
+     
+
       {/* Grid Layout for VisitorWorldMap and ReferralSourcesList */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
         <VisitorWorldMap visitorData={visitorData.mapData} />
         <ReferralSourcesList data={visitorData.referralData} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+        <RetentionChart data={retentionData} />
+        <CombinedChart data={combinedData} />
       </div>
     </div>
   );

@@ -3,7 +3,6 @@ import React from "react";
 const TimelineDropdown = ({ onSelectTimeline,selectedTimeline }) => {
   const handleChange = (event) => {
     const selectedValue = event.target.value;
-    console.log("Selected Timeline:", selectedValue); // Debugging log
     onSelectTimeline(selectedValue);
   };
 

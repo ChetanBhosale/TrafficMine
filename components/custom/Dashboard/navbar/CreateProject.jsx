@@ -5,7 +5,6 @@ import CreateProjectModel from './CreateProjectModel'
 
 const CreateProject = () => {
   const [isOpen, setOpen] = useState(false)
-  console.log(isOpen)
 
   return (
     <div onClick={() => setOpen(!isOpen)} className="flex cursor-pointer items-center justify-center relative px-8 py-4 text-white font-semibold rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg transition-transform duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl 

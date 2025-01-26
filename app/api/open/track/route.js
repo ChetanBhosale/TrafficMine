@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 export async function POST(req) {
   try {
     const data = await req.json();
-    console.log('Received data:', data);
 
     // Fetch location details from IP address
     let locationInfo = {};
@@ -14,8 +13,7 @@ export async function POST(req) {
       try {
     const ipResponse = await fetch(`https://ipinfo.io/${data.ip}?token=${process.env.NEXT_PUBLIC_IP}`);
     const ipDetails = await ipResponse.json();
-    console.log(ipDetails,'ip details')
-    console.log(ipDetails,'country')
+
         locationInfo = {
           country: ipDetails.country || '',
           region: ipDetails.region || '',
@@ -26,8 +24,6 @@ export async function POST(req) {
         console.error('Error fetching IP details:', error);
       }
     }
-
-    console.log(locationInfo,'location info of the user')
 
     // Determine the referrer
     const referrer = data.referrer || 'direct';

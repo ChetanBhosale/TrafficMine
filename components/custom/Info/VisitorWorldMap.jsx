@@ -16,7 +16,6 @@ export default function VisitorWorldMap({ visitorData = [] }) {
   // Count visitors by country
 
   const countryCounts = visitorData.reduce((acc, session) => {
-    console.log(session,'sessionss')
     const country = session.countries; // Ensure this is the correct field
     if (country) {
       const countryName = getCountryName(country);
@@ -25,7 +24,6 @@ export default function VisitorWorldMap({ visitorData = [] }) {
     return acc;
   }, {});
 
-  console.log(countryCounts,'countryCounts')
   const colorScale = scaleQuantile()
     .domain(Object.values(countryCounts))
     .range(["#ffedea", "#ffcec5", "#ffad9f", "#ff8a75", "#ff5533", "#e2492d", "#be3d26", "#9a311f", "#782618"]);

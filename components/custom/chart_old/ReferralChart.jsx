@@ -32,7 +32,6 @@ const ReferralSourcesList = ({ data }) => {
   }
 
   const getSourceType = (ref) => {
-    console.log(ref ,'ref')
     if (!ref) return "direct"
     ref = ref.toLowerCase()
 
