@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -17,6 +17,8 @@ import VisitorWorldMap from "@/components/custom/chart/VisitorWorldMap";
 import ReferralSourcesList from "@/components/custom/chart/ReferralSourcesList";
 import RetentionChart from "@/components/custom/chart/RetentionChart";
 import CombinedChart from "@/components/custom/chart/CombinedChart";
+import MostVisitedPages from "@/components/custom/chart/MostVisitedPages";
+import UserDeviceBrowserStats from "@/components/custom/chart/UserDeviceBrowserStats";
 
 const ProjectPage = () => {
   const session = useSession();
@@ -35,6 +37,12 @@ const ProjectPage = () => {
   const [showUniqueVisitors, setShowUniqueVisitors] = useState(false);
   const [initial, setInitial] = useState(0);
 
+  // New state for most visited pages and device/browser stats
+  const [mostVisitedPagesData, setMostVisitedPagesData] = useState([]);
+  const [mostCommonLastPageData, setMostCommonLastPageData] = useState([]);
+  const [deviceData, setDeviceData] = useState([]);
+  const [browserData, setBrowserData] = useState([]);
+
   // Fetch project data
   async function fetchProjectData(projectId, userId) {
     try {
@@ -52,7 +60,7 @@ const ProjectPage = () => {
   }
 
   // Fetch visitor data and transform it for charts
-  async function fetchVisitorData(projectId, timeline) {
+  const fetchVisitorData = async (projectId, timeline) => {
     if (initial === 0) {
       setIsLoading(true);
       setInitial(1);
@@ -60,7 +68,6 @@ const ProjectPage = () => {
     try {
       const response = await getVisitorSessions(projectId, timeline);
       if (response?.status === 200) {
-        console.log("Fetched sessions:", response.data); // Log fetched sessions
         const transformedData = transformDataForChart(response.data, showUniqueVisitors, timeline);
         setVisitorData((prevData) => ({
           ...prevData,
@@ -71,9 +78,19 @@ const ProjectPage = () => {
 
         const retention = calculateRetention(response.data, timeline, showUniqueVisitors);
         setRetentionData(retention);
-        
+
         const combined = calculateCombinedMetrics(response.data, timeline, showUniqueVisitors);
         setCombinedData(combined);
+
+        // Calculate most visited pages and most common last page
+        const { mostVisitedPages, mostCommonLastPage } = calculatePageStats(response.data);
+        setMostVisitedPagesData(mostVisitedPages);
+        setMostCommonLastPageData(mostCommonLastPage);
+
+        // Calculate device and browser stats
+        const { deviceStats, browserStats } = calculateDeviceBrowserStats(response.data);
+        setDeviceData(deviceStats);
+        setBrowserData(browserStats);
       } else {
         toast.error("Failed to fetch visitor data");
       }
@@ -83,7 +100,7 @@ const ProjectPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   // Transform data for Traffic Overview, Referral, and Map
   const transformDataForChart = (sessions, showUniqueVisitors, timeline) => {
@@ -197,220 +214,270 @@ const ProjectPage = () => {
   };
 
   // Calculate retention rate
-  // Calculate retention rate
-const calculateRetention = (sessions, timeline, showUniqueVisitors) => {
-  const now = new Date();
-  const retentionData = [];
+  const calculateRetention = (sessions, timeline, showUniqueVisitors) => {
+    const now = new Date();
+    const retentionData = [];
 
-  // Group sessions by visitorId and calculate return visits
-  const userSessions = sessions.reduce((acc, session) => {
-    if (!acc[session.visitorId]) {
-      acc[session.visitorId] = [];
-    }
-    acc[session.visitorId].push(new Date(session.sessionStart));
-    return acc;
-  }, {});
-
-  // Calculate retention rate based on timeline
-  switch (timeline) {
-    case "Last 24 Hours":
-      for (let hour = 0; hour < 24; hour++) {
-        const hourLabel = `${hour}:00`;
-        const returningUsers = Object.values(userSessions).filter((sessionDates) => {
-          return sessionDates.some((date) => date.getHours() === hour);
-        }).length;
-        
-        const totalVisitors = showUniqueVisitors 
-          ? new Set(sessions.map(s => s.visitorId)).size 
-          : sessions.length;
-        
-        retentionData.push({
-          label: hourLabel,
-          retentionRate: ((returningUsers / totalVisitors) * 100).toFixed(2),
-        });
+    // Group sessions by visitorId and calculate return visits
+    const userSessions = sessions.reduce((acc, session) => {
+      if (!acc[session.visitorId]) {
+        acc[session.visitorId] = [];
       }
-      break;
+      acc[session.visitorId].push(new Date(session.sessionStart));
+      return acc;
+    }, {});
 
-    case "Last Week":
-      for (let day = 0; day < 7; day++) {
-        const dayLabel = new Date(now - day * 24 * 60 * 60 * 1000).toLocaleDateString([], {
-          weekday: "short",
-        });
-        const returningUsers = Object.values(userSessions).filter((sessionDates) => {
-          return sessionDates.some((date) => date.getDay() === (now.getDay() - day + 7) % 7);
-        }).length;
-        
-        const totalVisitors = showUniqueVisitors 
-          ? new Set(sessions.map(s => s.visitorId)).size 
-          : sessions.length;
-        
-        retentionData.push({
-          label: dayLabel,
-          retentionRate: ((returningUsers / totalVisitors) * 100).toFixed(2),
-        });
-      }
-      break;
-
-    case "Last Month":
-      for (let day = 0; day < 30; day++) {
-        const dayLabel = new Date(now - day * 24 * 60 * 60 * 1000).toLocaleDateString([], {
-          day: "numeric",
-          month: "short",
-        });
-        const returningUsers = Object.values(userSessions).filter((sessionDates) => {
-          return sessionDates.some((date) => date.getDate() === new Date(now - day * 24 * 60 * 60 * 1000).getDate());
-        }).length;
-        
-        const totalVisitors = showUniqueVisitors 
-          ? new Set(sessions.map(s => s.visitorId)).size 
-          : sessions.length;
-        
-        retentionData.push({
-          label: dayLabel,
-          retentionRate: ((returningUsers / totalVisitors) * 100).toFixed(2),
-        });
-      }
-      break;
-
-    default:
-      break;
-  }
-
-  return retentionData;
-};
-
-// Calculate combined metrics
-const calculateCombinedMetrics = (sessions, timeline, showUniqueVisitors) => {
-  const now = new Date();
-  const combinedData = [];
-
-  // Group sessions by visitorId to track returning users
-  const userSessions = sessions.reduce((acc, session) => {
-    if (!acc[session.visitorId]) {
-      acc[session.visitorId] = [];
-    }
-    acc[session.visitorId].push(new Date(session.sessionStart));
-    return acc;
-  }, {});
-
-  // Generate labels for all dates in the selected timeline
-  let labels = [];
-  switch (timeline) {
-    case "Last 24 Hours":
-      labels = Array.from({ length: 24 }, (_, i) => {
-        const hour = new Date(now - i * 60 * 60 * 1000);
-        return hour.toLocaleTimeString([], { hour: "2-digit", hour12: false });
-      }).reverse();
-      break;
-    case "Last Week":
-      labels = Array.from({ length: 7 }, (_, i) => {
-        const day = new Date(now - i * 24 * 60 * 60 * 1000);
-        return day.toLocaleDateString([], { weekday: "short" });
-      }).reverse();
-      break;
-    case "Last Month":
-      labels = Array.from({ length: 30 }, (_, i) => {
-        const date = new Date(now - i * 24 * 60 * 60 * 1000);
-        return date.toLocaleDateString([], { day: "numeric", month: "short" });
-      }).reverse();
-      break;
-    default:
-      labels = [];
-  }
-
-  // Group sessions by timeline
-  const groupedSessions = sessions.reduce((acc, session) => {
-    let label;
+    // Calculate retention rate based on timeline
     switch (timeline) {
       case "Last 24 Hours":
-        label = new Date(session.sessionStart).toLocaleTimeString([], { hour: "2-digit", hour12: false });
+        for (let hour = 0; hour < 24; hour++) {
+          const hourLabel = `${hour}:00`;
+          const returningUsers = Object.values(userSessions).filter((sessionDates) => {
+            return sessionDates.some((date) => date.getHours() === hour);
+          }).length;
+
+          const totalVisitors = showUniqueVisitors
+            ? new Set(sessions.map((s) => s.visitorId)).size
+            : sessions.length;
+
+          retentionData.push({
+            label: hourLabel,
+            retentionRate: ((returningUsers / totalVisitors) * 100).toFixed(2),
+          });
+        }
+        break;
+
+      case "Last Week":
+        for (let day = 0; day < 7; day++) {
+          const dayLabel = new Date(now - day * 24 * 60 * 60 * 1000).toLocaleDateString([], {
+            weekday: "short",
+          });
+          const returningUsers = Object.values(userSessions).filter((sessionDates) => {
+            return sessionDates.some((date) => date.getDay() === (now.getDay() - day + 7) % 7);
+          }).length;
+
+          const totalVisitors = showUniqueVisitors
+            ? new Set(sessions.map((s) => s.visitorId)).size
+            : sessions.length;
+
+          retentionData.push({
+            label: dayLabel,
+            retentionRate: ((returningUsers / totalVisitors) * 100).toFixed(2),
+          });
+        }
+        break;
+
+      case "Last Month":
+        for (let day = 0; day < 30; day++) {
+          const dayLabel = new Date(now - day * 24 * 60 * 60 * 1000).toLocaleDateString([], {
+            day: "numeric",
+            month: "short",
+          });
+          const returningUsers = Object.values(userSessions).filter((sessionDates) => {
+            return sessionDates.some(
+              (date) => date.getDate() === new Date(now - day * 24 * 60 * 60 * 1000).getDate()
+            );
+          }).length;
+
+          const totalVisitors = showUniqueVisitors
+            ? new Set(sessions.map((s) => s.visitorId)).size
+            : sessions.length;
+
+          retentionData.push({
+            label: dayLabel,
+            retentionRate: ((returningUsers / totalVisitors) * 100).toFixed(2),
+          });
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    return retentionData;
+  };
+
+  // Calculate combined metrics
+  const calculateCombinedMetrics = (sessions, timeline, showUniqueVisitors) => {
+    const now = new Date();
+    const combinedData = [];
+
+    // Group sessions by visitorId to track returning users
+    const userSessions = sessions.reduce((acc, session) => {
+      if (!acc[session.visitorId]) {
+        acc[session.visitorId] = [];
+      }
+      acc[session.visitorId].push(new Date(session.sessionStart));
+      return acc;
+    }, {});
+
+    // Generate labels for all dates in the selected timeline
+    let labels = [];
+    switch (timeline) {
+      case "Last 24 Hours":
+        labels = Array.from({ length: 24 }, (_, i) => {
+          const hour = new Date(now - i * 60 * 60 * 1000);
+          return hour.toLocaleTimeString([], { hour: "2-digit", hour12: false });
+        }).reverse();
         break;
       case "Last Week":
-        label = new Date(session.sessionStart).toLocaleDateString([], { weekday: "short" });
+        labels = Array.from({ length: 7 }, (_, i) => {
+          const day = new Date(now - i * 24 * 60 * 60 * 1000);
+          return day.toLocaleDateString([], { weekday: "short" });
+        }).reverse();
         break;
       case "Last Month":
-        label = new Date(session.sessionStart).toLocaleDateString([], { day: "numeric", month: "short" });
+        labels = Array.from({ length: 30 }, (_, i) => {
+          const date = new Date(now - i * 24 * 60 * 60 * 1000);
+          return date.toLocaleDateString([], { day: "numeric", month: "short" });
+        }).reverse();
         break;
       default:
-        label = "";
+        labels = [];
     }
 
-    if (!acc[label]) {
-      acc[label] = { 
-        sessions: [], 
-        bounceSessions: 0, 
-        engagedSessions: 0, 
+    // Group sessions by timeline
+    const groupedSessions = sessions.reduce((acc, session) => {
+      let label;
+      switch (timeline) {
+        case "Last 24 Hours":
+          label = new Date(session.sessionStart).toLocaleTimeString([], { hour: "2-digit", hour12: false });
+          break;
+        case "Last Week":
+          label = new Date(session.sessionStart).toLocaleDateString([], { weekday: "short" });
+          break;
+        case "Last Month":
+          label = new Date(session.sessionStart).toLocaleDateString([], { day: "numeric", month: "short" });
+          break;
+        default:
+          label = "";
+      }
+
+      if (!acc[label]) {
+        acc[label] = {
+          sessions: [],
+          bounceSessions: 0,
+          engagedSessions: 0,
+          returningUsers: 0,
+          uniqueVisitors: new Set(),
+          uniqueReturningUsers: new Set(),
+        };
+      }
+      acc[label].sessions.push(session);
+      acc[label].uniqueVisitors.add(session.visitorId);
+
+      if (session.visitedPages.length === 1) {
+        acc[label].bounceSessions++;
+      } else {
+        acc[label].engagedSessions++;
+      }
+
+      // Check if the user has returned
+      if (userSessions[session.visitorId]?.length > 1) {
+        acc[label].returningUsers++;
+        acc[label].uniqueReturningUsers.add(session.visitorId);
+      }
+
+      return acc;
+    }, {});
+
+    // Fill in data for all labels, even if there's no data
+    labels.forEach((label) => {
+      const group = groupedSessions[label] || {
+        sessions: [],
+        bounceSessions: 0,
+        engagedSessions: 0,
         returningUsers: 0,
         uniqueVisitors: new Set(),
-        uniqueReturningUsers: new Set()
+        uniqueReturningUsers: new Set(),
       };
-    }
-    acc[label].sessions.push(session);
-    acc[label].uniqueVisitors.add(session.visitorId);
 
-    if (session.visitedPages.length === 1) {
-      acc[label].bounceSessions++;
-    } else {
-      acc[label].engagedSessions++;
-    }
+      const totalSessions = group.sessions.length;
+      const avgDuration =
+        totalSessions > 0
+          ? parseFloat(
+              (group.sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / totalSessions).toFixed(2)
+            )
+          : 0;
 
-    // Check if the user has returned
-    if (userSessions[session.visitorId]?.length > 1) {
-      acc[label].returningUsers++;
-      acc[label].uniqueReturningUsers.add(session.visitorId);
-    }
+      // Determine total visitors based on unique vs all visitors setting
+      const totalVisitors = showUniqueVisitors ? group.uniqueVisitors.size : totalSessions;
 
-    return acc;
-  }, {});
+      const bounceRate =
+        totalVisitors > 0 ? parseFloat(((group.bounceSessions / totalVisitors) * 100).toFixed(2)) : 0;
 
-  // Fill in data for all labels, even if there's no data
-  labels.forEach((label) => {
-    const group = groupedSessions[label] || {
-      sessions: [],
-      bounceSessions: 0,
-      engagedSessions: 0,
-      returningUsers: 0,
-      uniqueVisitors: new Set(),
-      uniqueReturningUsers: new Set()
-    };
+      const engagementRate =
+        totalVisitors > 0 ? parseFloat(((group.engagedSessions / totalVisitors) * 100).toFixed(2)) : 0;
 
-    const totalSessions = group.sessions.length;
-    const avgDuration =
-      totalSessions > 0
-        ? parseFloat((group.sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / totalSessions).toFixed(2))
-        : 0;
-    
-    // Determine total visitors based on unique vs all visitors setting
-    const totalVisitors = showUniqueVisitors 
-      ? group.uniqueVisitors.size 
-      : totalSessions;
+      const returningUsersPercentage =
+        totalVisitors > 0
+          ? parseFloat(
+              ((showUniqueVisitors ? group.uniqueReturningUsers.size : group.returningUsers) / totalVisitors) * 100
+            ).toFixed(2)
+          : 0;
 
-    const bounceRate = totalVisitors > 0 
-      ? parseFloat(((group.bounceSessions / totalVisitors) * 100).toFixed(2)) 
-      : 0;
-    
-    const engagementRate = totalVisitors > 0 
-      ? parseFloat(((group.engagedSessions / totalVisitors) * 100).toFixed(2)) 
-      : 0;
-    
-    const returningUsersPercentage = totalVisitors > 0 
-      ? parseFloat(((showUniqueVisitors 
-          ? group.uniqueReturningUsers.size 
-          : group.returningUsers) / totalVisitors) * 100).toFixed(2)
-      : 0;
-
-    combinedData.push({
-      label,
-      avgDuration,
-      bounceRate,
-      engagementRate,
-      returningUsersPercentage,
+      combinedData.push({
+        label,
+        avgDuration,
+        bounceRate,
+        engagementRate,
+        returningUsersPercentage,
+      });
     });
-  });
 
-  return combinedData;
-};
+    return combinedData;
+  };
 
+  // Calculate most visited pages and most common last page
+  const calculatePageStats = (sessions) => {
+    const mostVisitedPages = sessions.reduce((acc, session) => {
+      session.visitedPages.forEach((page) => {
+        // Remove URL parameters and queries (everything after "?")
+        const cleanedPage = page.split("?")[0];
+        acc[cleanedPage] = (acc[cleanedPage] || 0) + 1;
+      });
+      return acc;
+    }, {});
+  
+    const mostCommonLastPage = sessions.reduce((acc, session) => {
+      const page = session.page;
+      // Remove URL parameters and queries (everything after "?")
+      const cleanedPage = page.split("?")[0];
+      acc[cleanedPage] = (acc[cleanedPage] || 0) + 1;
+      return acc;
+    }, {});
+  
+    return {
+      mostVisitedPages: Object.entries(mostVisitedPages).map(([label, visitors]) => ({
+        label,
+        visitors,
+      })),
+      mostCommonLastPage: Object.entries(mostCommonLastPage).map(([label, visitors]) => ({
+        label,
+        visitors,
+      })),
+    };
+  };
+
+  // Calculate device and browser stats
+  const calculateDeviceBrowserStats = (sessions) => {
+    const deviceStats = sessions.reduce((acc, session) => {
+      const deviceType = session.deviceInfo?.deviceType || "unknown";
+      acc[deviceType] = (acc[deviceType] || 0) + 1;
+      return acc;
+    }, {});
+
+    const browserStats = sessions.reduce((acc, session) => {
+      const browserName = session.browserInfo?.browserName || "unknown";
+      acc[browserName] = (acc[browserName] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      deviceStats: Object.entries(deviceStats).map(([name, value]) => ({ name, value })),
+      browserStats: Object.entries(browserStats).map(([name, value]) => ({ name, value })),
+    };
+  };
 
   // Handle timeline change
   const handleTimelineChange = (timeline) => {
@@ -476,18 +543,23 @@ const calculateCombinedMetrics = (sessions, timeline, showUniqueVisitors) => {
         <TrafficOverviewChart data={visitorData.timelineData} />
       )}
 
-      {/* Grid Layout for Retention Chart and Combined Chart */}
-     
-
-      {/* Grid Layout for VisitorWorldMap and ReferralSourcesList */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
         <VisitorWorldMap visitorData={visitorData.mapData} />
         <ReferralSourcesList data={visitorData.referralData} />
       </div>
-
+      {/* Grid Layout for Retention Chart and Combined Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
         <RetentionChart data={retentionData} />
         <CombinedChart data={combinedData} />
+      </div>
+
+      {/* Grid Layout for VisitorWorldMap and ReferralSourcesList */}
+
+      {/* Grid Layout for Most Visited Pages and User Device/Browser Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+        <MostVisitedPages mostVisitedPagesData={mostVisitedPagesData} mostCommonLastPageData={mostCommonLastPageData} />
+        {/* <MostVisitedPages data={mostCommonLastPageData} type="lastPage" /> */}
+        <UserDeviceBrowserStats deviceData={deviceData} browserData={browserData} />
       </div>
     </div>
   );
